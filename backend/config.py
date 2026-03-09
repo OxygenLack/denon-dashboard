@@ -19,6 +19,9 @@ class Settings(BaseSettings):
     # Custom source names as JSON: {"GAME":"Game Console","BD":"Blu-ray"}
     denon_source_names: str = "{}"
 
+    # UI theme: gold (default), blue, red, green, olive, violet, purple, pink, orange
+    theme: str = "gold"
+
     log_level: str = "INFO"
 
     @property

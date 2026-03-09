@@ -2,13 +2,20 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ── Theme CSS variables (overridden at runtime by theme.js) ── */
+:root {
+  --accent:      #C5A55A;
+  --accent-dim:  #a08840;
+  --accent-glow: rgba(197,165,90,;
+}
+
 @layer base {
   * {
     -webkit-tap-highlight-color: transparent;
   }
   body {
     @apply min-h-screen bg-denon-dark;
-    background-image: radial-gradient(ellipse at 50% 0%, rgba(197, 165, 90, 0.03) 0%, transparent 60%);
+    background-image: radial-gradient(ellipse at 50% 0%, color-mix(in srgb, var(--accent) 5%, transparent) 0%, transparent 60%);
   }
 }
 
@@ -22,8 +29,9 @@
            active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed;
   }
   .btn-primary {
-    @apply btn bg-gradient-to-r from-denon-gold to-amber-500 text-denon-dark hover:brightness-110
-           shadow-md shadow-denon-gold/20;
+    @apply btn text-denon-dark hover:brightness-110;
+    background: linear-gradient(to right, var(--accent), var(--accent-dim));
+    box-shadow: 0 4px 12px var(--accent-glow)0.2);
   }
   .btn-ghost {
     @apply btn bg-denon-surface/70 text-denon-text hover:bg-denon-border;
@@ -48,16 +56,16 @@
 /* Custom range slider */
 input[type="range"] {
   @apply appearance-none w-full h-1.5 rounded-full cursor-pointer;
-  background: linear-gradient(to right, rgba(197, 165, 90, 0.3), rgba(197, 165, 90, 0.1));
+  background: linear-gradient(to right, var(--accent-glow)0.3), var(--accent-glow)0.1));
 }
 input[type="range"]::-webkit-slider-thumb {
   @apply appearance-none w-5 h-5 rounded-full shadow-lg cursor-grab active:cursor-grabbing;
-  background: linear-gradient(135deg, #C5A55A, #a08840);
+  background: linear-gradient(135deg, var(--accent), var(--accent-dim));
   border: 2px solid #0D0D0D;
 }
 input[type="range"]::-moz-range-thumb {
   @apply w-5 h-5 rounded-full shadow-lg cursor-grab active:cursor-grabbing border-0;
-  background: linear-gradient(135deg, #C5A55A, #a08840);
+  background: linear-gradient(135deg, var(--accent), var(--accent-dim));
 }
 input[type="range"]::-webkit-slider-runnable-track {
   @apply h-1.5 rounded-full;

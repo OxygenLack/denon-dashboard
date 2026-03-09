@@ -106,6 +106,7 @@ class DeviceInfoResponse(BaseModel):
     source_name_map: dict[str, str] = {}
     channel_volumes: dict[str, int] = {}
     receiver_ip: str | None = None
+    theme: str = "gold"
 
 
 class HealthResponse(BaseModel):
