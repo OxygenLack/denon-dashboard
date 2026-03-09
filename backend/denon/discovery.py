@@ -99,20 +99,44 @@ def _get_model_from_location(location: str | None) -> str | None:
 
 
 def _get_local_subnets() -> list[str]:
-    """Get local network subnets to scan (e.g. 192.168.1)."""
+    """Get local network subnets to scan using /proc/net/route (no external tools needed)."""
     subnets = set()
     try:
-        import subprocess
-        result = subprocess.run(["ip", "route"], capture_output=True, text=True, timeout=2)
-        for line in result.stdout.splitlines():
-            # Match lines like: 192.168.10.0/24 dev eth0
-            m = re.match(r"(\d+\.\d+\.\d+)\.\d+/\d+", line)
-            if m:
-                prefix = m.group(1)
-                if not prefix.startswith("127.") and not prefix.startswith("172."):
+        import struct
+        with open("/proc/net/route") as f:
+            for line in f.readlines()[1:]:  # skip header
+                parts = line.strip().split()
+                if len(parts) < 8:
+                    continue
+                dest_hex = parts[1]
+                mask_hex = parts[7]
+                # Skip default route and loopback
+                if dest_hex == "00000000":
+                    continue
+                dest = socket.inet_ntoa(struct.pack("<L", int(dest_hex, 16)))
+                mask = socket.inet_ntoa(struct.pack("<L", int(mask_hex, 16)))
+                # Only include private LAN ranges (skip 172.x Docker bridges)
+                if dest.startswith("192.168.") or dest.startswith("10."):
+                    # Extract /24 prefix
+                    parts_ip = dest.split(".")
+                    prefix = ".".join(parts_ip[:3])
                     subnets.add(prefix)
-    except Exception:
-        pass
+    except Exception as exc:
+        _LOGGER.debug("Could not read /proc/net/route: %s", exc)
+
+    # Fallback: derive subnet from own IP address
+    if not subnets:
+        try:
+            s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+            s.connect(("8.8.8.8", 80))
+            own_ip = s.getsockname()[0]
+            s.close()
+            prefix = ".".join(own_ip.split(".")[:3])
+            if not own_ip.startswith("127.") and not own_ip.startswith("172."):
+                subnets.add(prefix)
+        except Exception:
+            pass
+
     return list(subnets)
 
 
