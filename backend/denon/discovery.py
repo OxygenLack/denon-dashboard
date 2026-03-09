@@ -10,7 +10,7 @@ from typing import Any
 
 _LOGGER = logging.getLogger(__name__)
 
-SSDP_ADDR = "239.255.255.255"
+SSDP_ADDR = "239.255.255.250"
 SSDP_PORT = 1900
 HEOS_PORT = 1255
 TELNET_PORT = 23
