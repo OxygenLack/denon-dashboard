@@ -4,9 +4,8 @@
 
 /* ── Theme CSS variables (overridden at runtime by theme.js) ── */
 :root {
-  --accent:      #C5A55A;
-  --accent-dim:  #a08840;
-  --accent-glow: rgba(197,165,90,;
+  --accent:     #C5A55A;
+  --accent-dim: #a08840;
 }
 
 @layer base {
@@ -31,7 +30,7 @@
   .btn-primary {
     @apply btn text-denon-dark hover:brightness-110;
     background: linear-gradient(to right, var(--accent), var(--accent-dim));
-    box-shadow: 0 4px 12px var(--accent-glow)0.2);
+    box-shadow: 0 4px 12px color-mix(in srgb, var(--accent) 25%, transparent);
   }
   .btn-ghost {
     @apply btn bg-denon-surface/70 text-denon-text hover:bg-denon-border;
@@ -56,7 +55,11 @@
 /* Custom range slider */
 input[type="range"] {
   @apply appearance-none w-full h-1.5 rounded-full cursor-pointer;
-  background: linear-gradient(to right, var(--accent-glow)0.3), var(--accent-glow)0.1));
+  background: linear-gradient(
+    to right,
+    color-mix(in srgb, var(--accent) 30%, transparent),
+    color-mix(in srgb, var(--accent) 10%, transparent)
+  );
 }
 input[type="range"]::-webkit-slider-thumb {
   @apply appearance-none w-5 h-5 rounded-full shadow-lg cursor-grab active:cursor-grabbing;
