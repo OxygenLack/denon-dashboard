@@ -34,6 +34,7 @@ from api.models import (
 )
 from config import settings
 from denon.const import CHANNEL_NAMES, DEFAULT_SOURCES
+from denon.discovery import discover_receivers
 from denon.heos_client import HeosClient
 from denon.telnet_client import DenonTelnetClient
 
@@ -125,13 +126,15 @@ def _build_status(state: dict[str, Any]) -> dict[str, Any]:
     }
 
 
-def _fetch_speaker_calibration() -> dict[str, float]:
+def _fetch_speaker_calibration_for(host: str) -> dict[str, float]:
     """Fetch Audyssey speaker calibration from receiver HTTP API (best-effort)."""
+    if not host or host == "0.0.0.0":
+        return {}
     try:
         ctx = ssl.create_default_context()
         ctx.check_hostname = False
         ctx.verify_mode = ssl.CERT_NONE
-        url = f"https://{settings.denon_host}:10443/ajax/speakers/get_config?type=5"
+        url = f"https://{host}:10443/ajax/speakers/get_config?type=5"
         req = Request(url, headers={"User-Agent": "DenonDashboard/1.0"})
         with urlopen(req, timeout=5, context=ctx) as resp:
             data = resp.read().decode()
@@ -163,11 +166,25 @@ async def lifespan(app: FastAPI):
         list(source_name_cache.keys()),
     )
 
+    # Auto-discover if no host configured
+    host = settings.denon_host
+    if not host:
+        _LOGGER.info("No DENON_DASHBOARD_DENON_HOST set — starting auto-discovery...")
+        try:
+            devices = await discover_receivers(timeout=4.0)
+            if devices:
+                host = devices[0]["ip"]
+                _LOGGER.info("Auto-discovered receiver at %s (%s)", host, devices[0].get("model"))
+            else:
+                _LOGGER.warning("No receivers found — starting in unconfigured state.")
+        except Exception as exc:
+            _LOGGER.error("Auto-discovery failed: %s", exc)
+
     # Fetch speaker calibration from HTTP (best-effort, non-blocking)
-    speaker_calibration = await asyncio.to_thread(_fetch_speaker_calibration)
+    speaker_calibration = await asyncio.to_thread(_fetch_speaker_calibration_for, host or "")
 
     # Connect telnet
-    telnet = DenonTelnetClient(settings.denon_host, settings.denon_telnet_port)
+    telnet = DenonTelnetClient(host or "0.0.0.0", settings.denon_telnet_port)
     telnet.on_state_change(broadcast_state)
 
     try:
@@ -249,10 +266,56 @@ async def health():
     return HealthResponse(
         status="ok" if (telnet and telnet.connected) else "degraded",
         telnet_connected=telnet.connected if telnet else False,
-        receiver_ip=settings.denon_host,
+        receiver_ip=telnet.host if telnet else "0.0.0.0",
         receiver_power=telnet.state.get("power") if telnet else None,
         device_name=settings.denon_device_name,
+        discovery_mode=not bool(settings.denon_host),
     )
+
+
+@app.get("/api/v1/discover")
+async def discover_endpoint():
+    """Scan the local network for Denon/Marantz AVR receivers via SSDP."""
+    try:
+        devices = await discover_receivers(timeout=4.0)
+        return {"devices": devices}
+    except Exception as exc:
+        _LOGGER.error("Discovery error: %s", exc)
+        raise HTTPException(500, f"Discovery failed: {exc}")
+
+
+@app.post("/api/v1/connect")
+async def connect_to_receiver(req: CommandRequest):
+    """Connect (or reconnect) to a receiver IP. Uses 'command' field as the IP."""
+    global telnet, heos, speaker_calibration
+    ip = req.command.strip()
+    if not ip:
+        raise HTTPException(400, "IP address required")
+
+    _LOGGER.info("Connecting to receiver at %s", ip)
+
+    if heos:
+        await heos.disconnect()
+    if telnet:
+        await telnet.disconnect()
+
+    speaker_calibration = await asyncio.to_thread(_fetch_speaker_calibration_for, ip)
+
+    telnet = DenonTelnetClient(ip, settings.denon_telnet_port)
+    telnet.on_state_change(broadcast_state)
+    heos = HeosClient(ip)
+
+    try:
+        await telnet.connect()
+    except Exception as exc:
+        raise HTTPException(502, f"Could not connect to {ip}: {exc}")
+
+    try:
+        await heos.connect()
+    except Exception as exc:
+        _LOGGER.warning("HEOS connection to %s failed: %s", ip, exc)
+
+    return {"ok": True, "ip": ip}
 
 
 @app.get("/api/v1/status", response_model=StatusResponse)

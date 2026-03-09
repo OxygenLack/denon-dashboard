@@ -2,14 +2,13 @@
 from __future__ import annotations
 
 import json
-from typing import Optional
 
 from pydantic_settings import BaseSettings
 
 
 class Settings(BaseSettings):
-    # Required: receiver IP
-    denon_host: str = "192.168.1.100"
+    # Receiver IP — leave empty to enable auto-discovery via SSDP
+    denon_host: str = ""
     denon_telnet_port: int = 23
 
     # Optional display names (auto-detected via telnet if not set)
@@ -17,7 +16,7 @@ class Settings(BaseSettings):
     denon_zone1_name: str = "Main Zone"
     denon_zone2_name: str = "Zone 2"
 
-    # Custom source names as JSON: {"GAME":"NintendoSwitch","BD":"FireTV"}
+    # Custom source names as JSON: {"GAME":"Game Console","BD":"Blu-ray"}
     denon_source_names: str = "{}"
 
     log_level: str = "INFO"
