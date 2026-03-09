@@ -6,23 +6,23 @@ services:
     ports:
       - "8080:8080"
     environment:
-      # ── Required ────────────────────────────────────────────────────────────
-      # IP address of your Denon/Marantz AVR on your local network
-      - DENON_DASHBOARD_DENON_HOST=192.168.1.100
+      # Leave DENON_HOST empty to auto-discover your receiver via SSDP (recommended)
+      # Set it explicitly if auto-discovery doesn't work on your network
+      - DENON_DASHBOARD_DENON_HOST=
 
       # ── Optional ────────────────────────────────────────────────────────────
-      # Telnet port (default: 23)
-      - DENON_DASHBOARD_DENON_TELNET_PORT=23
+      # Telnet port (default: 23, rarely needs changing)
+      #- DENON_DASHBOARD_DENON_TELNET_PORT=23
       # Display name shown in the dashboard header
-      - DENON_DASHBOARD_DENON_DEVICE_NAME=My Receiver
+      #- DENON_DASHBOARD_DENON_DEVICE_NAME=My Receiver
       # Zone tab labels
-      - DENON_DASHBOARD_DENON_ZONE1_NAME=Main Zone
-      - DENON_DASHBOARD_DENON_ZONE2_NAME=Zone 2
+      #- DENON_DASHBOARD_DENON_ZONE1_NAME=Main Zone
+      #- DENON_DASHBOARD_DENON_ZONE2_NAME=Zone 2
       # Custom source names — maps protocol codes to display names (JSON)
-      # Find your codes: switch inputs on the receiver and watch SI<CODE> responses via telnet
-      - DENON_DASHBOARD_DENON_SOURCE_NAMES={"GAME":"Game Console","TV":"TV Audio","NET":"Streaming","BD":"Blu-ray","BT":"Bluetooth"}
-      # Log level: DEBUG, INFO, WARNING, ERROR
-      - DENON_DASHBOARD_LOG_LEVEL=INFO
+      # Find your codes by switching inputs and watching SI<CODE> telnet responses
+      #- DENON_DASHBOARD_DENON_SOURCE_NAMES={"GAME":"Game Console","TV":"TV Audio","NET":"Streaming","BD":"Blu-ray","BT":"Bluetooth"}
+      # Log level: DEBUG, INFO, WARNING, ERROR (default: INFO)
+      #- DENON_DASHBOARD_LOG_LEVEL=INFO
 
     # ── Traefik (optional) ───────────────────────────────────────────────────
     # Remove the 'ports' section above and uncomment this block if using Traefik
