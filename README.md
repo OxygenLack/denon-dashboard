@@ -1,8 +1,10 @@
 # Denon AVR Dashboard
 
-A modern, real-time web dashboard for controlling Denon AVR receivers. Built with React + FastAPI, communicates via **telnet** (port 23) and **HEOS CLI** (port 1255) — no dependency on the receiver's unreliable built-in web interface.
+A modern, real-time web dashboard for controlling Denon/Marantz AVR receivers. Built with React + FastAPI, communicates via **telnet** (port 23) and **HEOS CLI** (port 1255) — no dependency on the receiver's unreliable built-in web interface.
 
-![Dark Theme](https://img.shields.io/badge/theme-dark-1a1a2e) ![React 19](https://img.shields.io/badge/React-19-61dafb) ![FastAPI](https://img.shields.io/badge/FastAPI-0.115-009688) ![Docker](https://img.shields.io/badge/Docker-ready-2496ed)
+[![Build](https://github.com/OxygenLack/denon-dashboard/actions/workflows/docker.yml/badge.svg)](https://github.com/OxygenLack/denon-dashboard/actions/workflows/docker.yml) [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE) ![React 19](https://img.shields.io/badge/React-19-61dafb) ![FastAPI](https://img.shields.io/badge/FastAPI-0.115-009688) ![Docker](https://img.shields.io/badge/Docker-ready-2496ed)
+
+> **Disclaimer:** This is an unofficial, community-developed project. Not affiliated with or endorsed by Denon, Marantz, or Sound United/Masimo. All product names and trademarks are the property of their respective owners.
 
 ## Features
 
@@ -56,7 +58,7 @@ Verify telnet access:
 ```yaml
 services:
   denon-dashboard:
-    image: ghcr.io/OxygenLack/denon-dashboard:latest
+    image: ghcr.io/oxygenlack/denon-dashboard:latest
     container_name: denon-dashboard
     restart: unless-stopped
     ports:
