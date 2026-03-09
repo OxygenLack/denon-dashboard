@@ -98,6 +98,74 @@ def _get_model_from_location(location: str | None) -> str | None:
     return None
 
 
+def _get_local_subnets() -> list[str]:
+    """Get local network subnets to scan (e.g. 192.168.1)."""
+    subnets = set()
+    try:
+        import subprocess
+        result = subprocess.run(["ip", "route"], capture_output=True, text=True, timeout=2)
+        for line in result.stdout.splitlines():
+            # Match lines like: 192.168.10.0/24 dev eth0
+            m = re.match(r"(\d+\.\d+\.\d+)\.\d+/\d+", line)
+            if m:
+                prefix = m.group(1)
+                if not prefix.startswith("127.") and not prefix.startswith("172."):
+                    subnets.add(prefix)
+    except Exception:
+        pass
+    return list(subnets)
+
+
+async def _subnet_scan(subnets: list[str], timeout: float = 3.0) -> list[dict[str, Any]]:
+    """
+    Fallback: scan local subnets for devices with port 23 (telnet) open.
+    Verifies with a quick telnet handshake to confirm it's a Denon receiver.
+    """
+    if not subnets:
+        return []
+
+    _LOGGER.info("SSDP found nothing — falling back to subnet scan on: %s", subnets)
+
+    found = []
+    sem = asyncio.Semaphore(50)  # max 50 concurrent probes
+
+    async def probe(ip: str) -> dict | None:
+        async with sem:
+            loop = asyncio.get_event_loop()
+            telnet_ok = await loop.run_in_executor(None, _probe_port, ip, TELNET_PORT, 0.3)
+            if not telnet_ok:
+                return None
+            # Quick verify: send PW? and check for a Denon-style response
+            try:
+                reader, writer = await asyncio.wait_for(
+                    asyncio.open_connection(ip, TELNET_PORT), timeout=1.0
+                )
+                writer.write(b"PW?\r")
+                await writer.drain()
+                data = await asyncio.wait_for(reader.read(64), timeout=1.0)
+                writer.close()
+                text = data.decode(errors="ignore")
+                if not any(x in text for x in ("PWON", "PWSTANDBY", "MV", "SI", "MS")):
+                    return None  # Not a Denon receiver
+            except Exception:
+                return None
+            heos_ok = await loop.run_in_executor(None, _probe_port, ip, HEOS_PORT, 0.5)
+            return {
+                "ip": ip,
+                "model": "Denon/Marantz AVR",
+                "telnet_port": TELNET_PORT,
+                "heos_available": heos_ok,
+            }
+
+    # Probe all IPs in the subnets concurrently
+    all_ips = [f"{subnet}.{i}" for subnet in subnets for i in range(1, 255)]
+    tasks = [probe(ip) for ip in all_ips]
+    results = await asyncio.gather(*tasks, return_exceptions=True)
+    found = [r for r in results if isinstance(r, dict)]
+    _LOGGER.info("Subnet scan found %d receiver(s)", len(found))
+    return found
+
+
 async def discover_receivers(timeout: float = 4.0) -> list[dict[str, Any]]:
     """
     Discover Denon/Marantz AVR receivers on the local network via SSDP/UPnP.
@@ -137,5 +205,11 @@ async def discover_receivers(timeout: float = 4.0) -> list[dict[str, Any]]:
 
     enriched = await asyncio.gather(*[enrich(ip, info) for ip, info in seen.items()])
     found = [d for d in enriched if d["telnet_port"] is not None]
+
+    # Fallback: subnet scan if SSDP found nothing
+    if not found:
+        subnets = await asyncio.get_event_loop().run_in_executor(None, _get_local_subnets)
+        found = await _subnet_scan(subnets, timeout=timeout)
+
     _LOGGER.info("Discovery found %d receiver(s): %s", len(found), [d["ip"] for d in found])
     return found
