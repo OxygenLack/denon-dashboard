@@ -1,0 +1,26 @@
+version: '3.8'
+
+services:
+  backend:
+    image: ghcr.io/OxygenLack/denon-dashboard:latest
+    ports:
+      - "8000:8000"
+    environment:
+      DENON_HOST: 192.168.1.100
+      DENON_PORT: 23
+      DENON_DEVICE_NAME: My Receiver
+      DENON_ZONE1_NAME: Main Zone
+      DENON_ZONE2_NAME: Zone 2
+      DENON_SOURCE_NAMES: '{"GAME":"Game Console","TV":"TV Audio","BD":"Blu-ray","NET":"Streaming","AUX1":"PC/Console"}'
+      LOG_LEVEL: info
+    volumes:
+      - ./backend/data:/app/data
+
+  frontend:
+    image: ghcr.io/OxygenLack/denon-dashboard:latest
+    ports:
+      - "3000:3000"
+    environment:
+      REACT_APP_BACKEND_URL: http://localhost:8000
+    depends_on:
+      - backend

@@ -1,0 +1,83 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  * {
+    -webkit-tap-highlight-color: transparent;
+  }
+  body {
+    @apply min-h-screen bg-denon-dark;
+    background-image: radial-gradient(ellipse at 50% 0%, rgba(197, 165, 90, 0.03) 0%, transparent 60%);
+  }
+}
+
+@layer components {
+  .card {
+    @apply bg-denon-card/80 backdrop-blur-sm rounded-2xl border border-denon-border/50 p-5
+           shadow-lg shadow-black/10;
+  }
+  .btn {
+    @apply px-4 py-2 rounded-xl font-medium transition-all duration-150
+           active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed;
+  }
+  .btn-primary {
+    @apply btn bg-gradient-to-r from-denon-gold to-amber-500 text-denon-dark hover:brightness-110
+           shadow-md shadow-denon-gold/20;
+  }
+  .btn-ghost {
+    @apply btn bg-denon-surface/70 text-denon-text hover:bg-denon-border;
+  }
+  .btn-danger {
+    @apply btn bg-denon-red/20 text-denon-red hover:bg-denon-red/30;
+  }
+  .badge {
+    @apply inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium;
+  }
+  .badge-green {
+    @apply badge bg-denon-green/10 text-denon-green border border-denon-green/20;
+  }
+  .badge-red {
+    @apply badge bg-denon-red/10 text-denon-red border border-denon-red/20;
+  }
+  .badge-muted {
+    @apply badge bg-denon-surface text-denon-muted;
+  }
+}
+
+/* Custom range slider */
+input[type="range"] {
+  @apply appearance-none w-full h-1.5 rounded-full cursor-pointer;
+  background: linear-gradient(to right, rgba(197, 165, 90, 0.3), rgba(197, 165, 90, 0.1));
+}
+input[type="range"]::-webkit-slider-thumb {
+  @apply appearance-none w-5 h-5 rounded-full shadow-lg cursor-grab active:cursor-grabbing;
+  background: linear-gradient(135deg, #C5A55A, #a08840);
+  border: 2px solid #0D0D0D;
+}
+input[type="range"]::-moz-range-thumb {
+  @apply w-5 h-5 rounded-full shadow-lg cursor-grab active:cursor-grabbing border-0;
+  background: linear-gradient(135deg, #C5A55A, #a08840);
+}
+input[type="range"]::-webkit-slider-runnable-track {
+  @apply h-1.5 rounded-full;
+}
+
+/* Smooth transitions */
+.fade-in {
+  animation: fadeIn 0.2s ease-out;
+}
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* Select styling */
+select {
+  @apply bg-denon-surface text-denon-text text-xs rounded-lg px-2 py-1.5 border border-denon-border/50
+         appearance-none cursor-pointer;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23888' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 8px center;
+  padding-right: 24px;
+}
