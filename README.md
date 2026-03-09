@@ -252,7 +252,9 @@ Should work with any Denon/Marantz AVR that supports:
 
 ## Home Assistant Integration
 
-A companion Home Assistant integration is available separately that connects to this dashboard's API, creating `media_player` entities for both zones.
+A companion [Home Assistant integration](https://github.com/OxygenLack/denon-dashboard-ha) is available that connects to this dashboard's API, creating `media_player` entities for both zones. Supports full control including volume, source selection, surround modes, and media playback.
+
+Install via [HACS](https://hacs.xyz/) by adding `https://github.com/OxygenLack/denon-dashboard-ha` as a custom repository, or copy the `custom_components/denon_avr_telnet/` folder manually to your HA config directory.
 
 ## License
 
