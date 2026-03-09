@@ -113,3 +113,4 @@ class HealthResponse(BaseModel):
     receiver_ip: str
     receiver_power: bool | None = None
     device_name: str | None = None
+    discovery_mode: bool = False

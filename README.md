@@ -105,13 +105,15 @@ All configuration is via environment variables with the `DENON_DASHBOARD_` prefi
 
 | Variable | Required | Default | Description |
 |---|---|---|---|
-| `DENON_DASHBOARD_DENON_HOST` | ✅ | — | IP address of your Denon AVR |
+| `DENON_DASHBOARD_DENON_HOST` | — | auto-discover | IP of your Denon AVR (leave empty to auto-discover via SSDP) |
 | `DENON_DASHBOARD_DENON_TELNET_PORT` | — | `23` | Telnet port |
 | `DENON_DASHBOARD_DENON_DEVICE_NAME` | — | `Denon AVR` | Display name in header |
 | `DENON_DASHBOARD_DENON_ZONE1_NAME` | — | `Main Zone` | Main zone tab label |
 | `DENON_DASHBOARD_DENON_ZONE2_NAME` | — | `Zone 2` | Zone 2 tab label |
 | `DENON_DASHBOARD_DENON_SOURCE_NAMES` | — | `{}` | JSON map of source codes to names |
 | `DENON_DASHBOARD_LOG_LEVEL` | — | `INFO` | Log verbosity |
+
+> **Auto-discovery:** Leave `DENON_DASHBOARD_DENON_HOST` unset and the dashboard will scan your local network for Denon/Marantz receivers using SSDP/UPnP at startup. A setup screen lets you pick from discovered devices or enter an IP manually — no config file needed for first-time setup.
 
 ### Finding Source Codes
 

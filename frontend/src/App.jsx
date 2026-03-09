@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { useWebSocket } from './hooks/useWebSocket'
+import ReceiverSetup from './components/ReceiverSetup'
 import { useDeviceInfo } from './hooks/useDeviceInfo'
 import { useApi } from './hooks/useApi'
 import StatusBar from './components/StatusBar'
@@ -40,6 +41,11 @@ export default function App() {
         </div>
       </div>
     )
+  }
+
+  // Show setup screen when no receiver is configured (host defaults to 0.0.0.0)
+  if (!state.connected && info?.receiver_ip === '0.0.0.0') {
+    return <ReceiverSetup onConnect={() => window.location.reload()} />
   }
 
   const deviceName = info?.device_name || 'Denon AVR'
