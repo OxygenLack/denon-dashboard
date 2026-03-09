@@ -183,7 +183,6 @@ async def _connect_to_host(host: str) -> None:
         _LOGGER.warning("HEOS connection failed: %s", exc)
 
     # Assign atomically so API never sees half-initialized state
-    global telnet, heos  # noqa: F811 (re-declare for clarity)
     telnet = telnet_client
     heos = heos_client
 
