@@ -3,11 +3,13 @@ services:
     image: ghcr.io/oxygenlack/denon-dashboard:latest
     container_name: denon-dashboard
     restart: unless-stopped
-    ports:
-      - "8080:8080"
+    # network_mode: host is required for SSDP auto-discovery (multicast doesn't cross Docker bridge)
+    # With host networking, the dashboard is available on port 8080 of the Docker host directly.
+    # Remove this and uncomment 'ports' below if you don't need auto-discovery (manual IP instead).
+    network_mode: host
     environment:
-      # Leave DENON_HOST empty to auto-discover your receiver via SSDP (recommended)
-      # Set it explicitly if auto-discovery doesn't work on your network
+      # Leave empty to auto-discover your receiver via SSDP (requires network_mode: host)
+      # Set explicitly if auto-discovery doesn't work or you prefer manual config
       - DENON_DASHBOARD_DENON_HOST=
 
       # ── Optional ────────────────────────────────────────────────────────────
@@ -24,8 +26,15 @@ services:
       # Log level: DEBUG, INFO, WARNING, ERROR (default: INFO)
       #- DENON_DASHBOARD_LOG_LEVEL=INFO
 
+    # ── Without auto-discovery (bridge networking) ───────────────────────────
+    # If you set DENON_HOST explicitly, you can use bridge networking + ports instead:
+    #ports:
+    #  - "8080:8080"
+    # And comment out network_mode: host above.
+
     # ── Traefik (optional) ───────────────────────────────────────────────────
-    # Remove the 'ports' section above and uncomment this block if using Traefik
+    # Traefik requires bridge networking. Set DENON_HOST explicitly, remove network_mode: host,
+    # uncomment ports above, and add these labels:
     #labels:
     #  - "traefik.enable=true"
     #  - "traefik.http.routers.denon-dashboard.rule=Host(`denon.example.com`)"
