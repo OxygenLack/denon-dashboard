@@ -68,6 +68,7 @@ class EcoModeRequest(BaseModel):
 
 class StatusResponse(BaseModel):
     connected: bool
+    discovering: bool = False
     power: bool | None = None
     volume: float | None = None
     volume_max: float | None = None
@@ -114,3 +115,4 @@ class HealthResponse(BaseModel):
     receiver_power: bool | None = None
     device_name: str | None = None
     discovery_mode: bool = False
+    discovering: bool = False

@@ -3,38 +3,36 @@ services:
     image: ghcr.io/oxygenlack/denon-dashboard:latest
     container_name: denon-dashboard
     restart: unless-stopped
-    # network_mode: host is required for SSDP auto-discovery (multicast doesn't cross Docker bridge)
-    # With host networking, the dashboard is available on port 8080 of the Docker host directly.
-    # Remove this and uncomment 'ports' below if you don't need auto-discovery (manual IP instead).
+
+    # network_mode: host is required for SSDP auto-discovery (multicast).
+    # Remove this and use 'ports' below if you use Traefik or want a fixed port mapping.
     network_mode: host
+
     environment:
-      # Leave empty to auto-discover your receiver via SSDP (requires network_mode: host)
-      # Set explicitly if auto-discovery doesn't work or you prefer manual config
+      # ── Discovery ────────────────────────────────────────────────────────────
+      # Leave empty for automatic SSDP discovery (recommended).
+      # Set to your receiver's IP if auto-discovery doesn't work on your network.
       - DENON_DASHBOARD_DENON_HOST=
 
-      # ── Optional ────────────────────────────────────────────────────────────
-      # Telnet port (default: 23, rarely needs changing)
+      # ── Port ─────────────────────────────────────────────────────────────────
+      # Dashboard port (default 8080). Change if 8080 is taken on your host.
+      #- DENON_DASHBOARD_PORT=8080
+
+      # ── Optional ─────────────────────────────────────────────────────────────
       #- DENON_DASHBOARD_DENON_TELNET_PORT=23
-      # Display name shown in the dashboard header
       #- DENON_DASHBOARD_DENON_DEVICE_NAME=My Receiver
-      # Zone tab labels
       #- DENON_DASHBOARD_DENON_ZONE1_NAME=Main Zone
       #- DENON_DASHBOARD_DENON_ZONE2_NAME=Zone 2
-      # Custom source names — maps protocol codes to display names (JSON)
-      # Find your codes by switching inputs and watching SI<CODE> telnet responses
       #- DENON_DASHBOARD_DENON_SOURCE_NAMES={"GAME":"Game Console","TV":"TV Audio","NET":"Streaming","BD":"Blu-ray","BT":"Bluetooth"}
-      # Log level: DEBUG, INFO, WARNING, ERROR (default: INFO)
       #- DENON_DASHBOARD_LOG_LEVEL=INFO
 
-    # ── Without auto-discovery (bridge networking) ───────────────────────────
-    # If you set DENON_HOST explicitly, you can use bridge networking + ports instead:
+    # ── Ports (bridge mode / Traefik) ─────────────────────────────────────────
+    # Uncomment and remove network_mode: host if you use Traefik or bridge networking.
+    # Auto-discovery will NOT work in bridge mode — set DENON_DASHBOARD_DENON_HOST explicitly.
     #ports:
     #  - "8080:8080"
-    # And comment out network_mode: host above.
 
-    # ── Traefik (optional) ───────────────────────────────────────────────────
-    # Traefik requires bridge networking. Set DENON_HOST explicitly, remove network_mode: host,
-    # uncomment ports above, and add these labels:
+    # ── Traefik labels (optional) ─────────────────────────────────────────────
     #labels:
     #  - "traefik.enable=true"
     #  - "traefik.http.routers.denon-dashboard.rule=Host(`denon.example.com`)"
