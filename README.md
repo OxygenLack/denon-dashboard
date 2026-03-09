@@ -55,17 +55,33 @@ Browser  ◄──WebSocket──►  FastAPI Backend  ──telnet (23)──�
 
 ## Quick Start (Docker)
 
-### 1. Find Your Receiver
+### 1. Create `compose.yaml`
 
-Your Denon AVR must be on the network. Find its IP address from your router or the receiver's network settings menu.
-
-Verify telnet access:
-```bash
-# Should connect and show receiver responses
-(echo -e "PW?\r"; sleep 1) | nc YOUR_RECEIVER_IP 23
+```yaml
+services:
+  denon-dashboard:
+    image: ghcr.io/oxygenlack/denon-dashboard:latest
+    container_name: denon-dashboard
+    restart: unless-stopped
+    network_mode: host        # required for SSDP auto-discovery
+    environment:
+      - DENON_DASHBOARD_DENON_HOST=   # leave empty — auto-discovers your receiver
+      #- DENON_DASHBOARD_PORT=8080    # change if port 8080 is taken on your host
 ```
 
-### 2. Create `compose.yaml`
+### 2. Start
+
+```bash
+docker compose up -d
+```
+
+Open `http://YOUR_HOST:8080` — the dashboard will find your receiver automatically.
+
+> **No receiver found?** The dashboard starts immediately and shows a "Searching…" screen while scanning your network. Once found, it connects automatically — no page refresh needed. If it can't find the receiver after ~30 seconds, a setup screen appears where you can enter the IP manually.
+
+### Manual IP (bridge mode / Traefik)
+
+If you use Traefik or can't use `network_mode: host`, set the IP explicitly:
 
 ```yaml
 services:
@@ -74,46 +90,29 @@ services:
     container_name: denon-dashboard
     restart: unless-stopped
     ports:
-      - "8084:8080"
+      - "8080:8080"
     environment:
-      # Required: IP address of your Denon AVR
-      - DENON_DASHBOARD_DENON_HOST=192.168.1.100
-      # Optional: Telnet port (default: 23)
-      - DENON_DASHBOARD_DENON_TELNET_PORT=23
-      # Display name shown in the header
-      - DENON_DASHBOARD_DENON_DEVICE_NAME=My Receiver
-      # Zone names (shown in zone selector)
-      - DENON_DASHBOARD_DENON_ZONE1_NAME=Main Zone
-      - DENON_DASHBOARD_DENON_ZONE2_NAME=Zone 2
-      # Custom source names (JSON: protocol_code → display_name)
-      - DENON_DASHBOARD_DENON_SOURCE_NAMES={"GAME":"Game Console","TV":"TV Audio","BD":"Blu-ray","NET":"Streaming","BT":"Bluetooth"}
-      # Log level: DEBUG, INFO, WARNING, ERROR
-      - DENON_DASHBOARD_LOG_LEVEL=INFO
+      - DENON_DASHBOARD_DENON_HOST=192.168.1.100   # your receiver's IP
 ```
 
-### 3. Start
-
-```bash
-docker compose up -d
-```
-
-Open `http://YOUR_HOST:8084` in your browser.
+> SSDP auto-discovery requires `network_mode: host` because Docker's bridge network blocks multicast. With bridge mode, set `DENON_DASHBOARD_DENON_HOST` explicitly.
 
 ## Configuration
 
 All configuration is via environment variables with the `DENON_DASHBOARD_` prefix.
 
-| Variable | Required | Default | Description |
-|---|---|---|---|
-| `DENON_DASHBOARD_DENON_HOST` | — | auto-discover | IP of your Denon AVR (leave empty to auto-discover via SSDP) |
-| `DENON_DASHBOARD_DENON_TELNET_PORT` | — | `23` | Telnet port |
-| `DENON_DASHBOARD_DENON_DEVICE_NAME` | — | `Denon AVR` | Display name in header |
-| `DENON_DASHBOARD_DENON_ZONE1_NAME` | — | `Main Zone` | Main zone tab label |
-| `DENON_DASHBOARD_DENON_ZONE2_NAME` | — | `Zone 2` | Zone 2 tab label |
-| `DENON_DASHBOARD_DENON_SOURCE_NAMES` | — | `{}` | JSON map of source codes to names |
-| `DENON_DASHBOARD_LOG_LEVEL` | — | `INFO` | Log verbosity |
+| Variable | Default | Description |
+|---|---|---|
+| `DENON_DASHBOARD_DENON_HOST` | *(empty)* | Receiver IP. **Leave empty** to auto-discover via SSDP. Set explicitly if using bridge networking or Traefik. |
+| `DENON_DASHBOARD_PORT` | `8080` | Dashboard port. Change if 8080 is already in use on your host (e.g. `8084`). |
+| `DENON_DASHBOARD_DENON_TELNET_PORT` | `23` | Telnet port — rarely needs changing. |
+| `DENON_DASHBOARD_DENON_DEVICE_NAME` | `Denon AVR` | Display name shown in the header. |
+| `DENON_DASHBOARD_DENON_ZONE1_NAME` | `Main Zone` | Main zone tab label. |
+| `DENON_DASHBOARD_DENON_ZONE2_NAME` | `Zone 2` | Zone 2 tab label. |
+| `DENON_DASHBOARD_DENON_SOURCE_NAMES` | `{}` | JSON map of source codes → display names. |
+| `DENON_DASHBOARD_LOG_LEVEL` | `INFO` | Log verbosity (`DEBUG`, `INFO`, `WARNING`, `ERROR`). |
 
-> **Auto-discovery:** Leave `DENON_DASHBOARD_DENON_HOST` unset and the dashboard will scan your local network for Denon/Marantz receivers using SSDP/UPnP at startup. A setup screen lets you pick from discovered devices or enter an IP manually — no config file needed for first-time setup.
+**How auto-discovery works:** On startup, the dashboard sends an SSDP/UPnP multicast search (`239.255.255.250:1900`) to find Denon/Marantz receivers. If SSDP gets no response, it falls back to a subnet port scan (port 23) — slower (~30s) but works on networks where multicast is blocked. The UI shows a "Searching…" spinner while this happens and connects automatically when found. Requires `network_mode: host`.
 
 ### Finding Source Codes
 

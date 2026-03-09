@@ -49,6 +49,7 @@ _LOGGER = logging.getLogger("denon_dashboard")
 telnet: DenonTelnetClient | None = None
 heos: HeosClient | None = None
 ws_clients: set[WebSocket] = set()
+discovering: bool = False  # True while auto-discovery is running
 
 # Source name mapping: protocol code -> display name
 # Priority: env config > DEFAULT_SOURCES fallback
@@ -96,6 +97,7 @@ def _build_status(state: dict[str, Any]) -> dict[str, Any]:
     z2src = state.get("z2_source")
     return {
         "connected": telnet.connected if telnet else False,
+        "discovering": discovering,
         "power": state.get("power"),
         "volume": state.get("volume"),
         "volume_max": state.get("volume_max"),
@@ -152,11 +154,72 @@ def _fetch_speaker_calibration_for(host: str) -> dict[str, float]:
         return {}
 
 
+# ---- Background connect ----
+
+async def _connect_to_host(host: str) -> None:
+    """Connect telnet + HEOS for a given host IP (called from lifespan or discovery)."""
+    global telnet, heos, speaker_calibration
+
+    speaker_calibration = await asyncio.to_thread(_fetch_speaker_calibration_for, host)
+
+    if telnet:
+        await telnet.disconnect()
+    if heos:
+        await heos.disconnect()
+
+    telnet_client = DenonTelnetClient(host, settings.denon_telnet_port)
+    telnet_client.on_state_change(broadcast_state)
+
+    try:
+        await telnet_client.connect()
+        _LOGGER.info("Telnet connected to %s:%s", host, settings.denon_telnet_port)
+    except Exception as exc:
+        _LOGGER.error("Initial telnet connection failed: %s (will retry in background)", exc)
+
+    heos_client = HeosClient(host)
+    try:
+        await heos_client.connect()
+    except Exception as exc:
+        _LOGGER.warning("HEOS connection failed: %s", exc)
+
+    # Assign atomically so API never sees half-initialized state
+    global telnet, heos  # noqa: F811 (re-declare for clarity)
+    telnet = telnet_client
+    heos = heos_client
+
+    # Notify all connected WebSocket clients that state changed
+    await broadcast_state(telnet.state if telnet else {})
+
+
+async def _auto_discover_and_connect() -> None:
+    """Background task: discover receiver and connect. Retries every 30s until found."""
+    global discovering
+    _LOGGER.info("No DENON_DASHBOARD_DENON_HOST set — starting auto-discovery in background...")
+    while True:
+        discovering = True
+        await broadcast_state(telnet.state if telnet else {})
+        try:
+            devices = await discover_receivers(timeout=5.0)
+            if devices:
+                host = devices[0]["ip"]
+                _LOGGER.info("Auto-discovered receiver at %s (%s)", host, devices[0].get("model"))
+                discovering = False
+                await _connect_to_host(host)
+                return  # success — stop retrying
+            else:
+                _LOGGER.warning("Auto-discovery found no receivers — retrying in 30s")
+        except Exception as exc:
+            _LOGGER.error("Auto-discovery error: %s — retrying in 30s", exc)
+        discovering = False
+        await broadcast_state(telnet.state if telnet else {})
+        await asyncio.sleep(30)
+
+
 # ---- Lifespan ----
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    global telnet, heos, source_name_cache, speaker_calibration
+    global telnet, heos, source_name_cache
 
     # Build source name cache from env config
     source_name_cache = settings.source_name_map.copy()
@@ -166,41 +229,14 @@ async def lifespan(app: FastAPI):
         list(source_name_cache.keys()),
     )
 
-    # Auto-discover if no host configured
     host = settings.denon_host
-    if not host:
-        _LOGGER.info("No DENON_DASHBOARD_DENON_HOST set — starting auto-discovery...")
-        try:
-            devices = await discover_receivers(timeout=4.0)
-            if devices:
-                host = devices[0]["ip"]
-                _LOGGER.info("Auto-discovered receiver at %s (%s)", host, devices[0].get("model"))
-            else:
-                _LOGGER.warning("No receivers found — starting in unconfigured state.")
-        except Exception as exc:
-            _LOGGER.error("Auto-discovery failed: %s", exc)
-
-    # Fetch speaker calibration from HTTP (best-effort, non-blocking)
-    speaker_calibration = await asyncio.to_thread(_fetch_speaker_calibration_for, host or "")
-
-    # Connect telnet
-    telnet = DenonTelnetClient(host or "0.0.0.0", settings.denon_telnet_port)
-    telnet.on_state_change(broadcast_state)
-
-    try:
-        await telnet.connect()
-        _LOGGER.info("Telnet connected to %s:%s", host, settings.denon_telnet_port)
-    except Exception as exc:
-        _LOGGER.error(
-            "Initial telnet connection failed: %s (will retry in background)", exc
-        )
-
-    # Connect HEOS (for media controls)
-    heos = HeosClient(host or "")
-    try:
-        await heos.connect()
-    except Exception as exc:
-        _LOGGER.warning("HEOS connection failed: %s", exc)
+    if host:
+        # Static host configured — connect synchronously so UI is ready immediately
+        _LOGGER.info("Connecting to configured host %s...", host)
+        await _connect_to_host(host)
+    else:
+        # No host — start immediately, discover in background
+        asyncio.create_task(_auto_discover_and_connect())
 
     yield
 
@@ -270,6 +306,7 @@ async def health():
         receiver_power=telnet.state.get("power") if telnet else None,
         device_name=settings.denon_device_name,
         discovery_mode=not bool(settings.denon_host),
+        discovering=discovering,
     )
 
 

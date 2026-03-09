@@ -32,19 +32,44 @@ export default function App() {
   const [zone, setZone] = useState('main')
   const [activeSection, setActiveSection] = useState('controls')
 
+  // Loading — waiting for first WebSocket message
   if (!state) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-denon-dark">
         <div className="text-center">
           <div className="w-14 h-14 border-4 border-denon-gold/30 border-t-denon-gold rounded-full animate-spin mx-auto mb-4" />
-          <p className="text-denon-muted text-sm">Connecting to receiver…</p>
+          <p className="text-denon-muted text-sm">Connecting…</p>
         </div>
       </div>
     )
   }
 
-  // Show setup screen when no receiver is configured or connection failed
-  if (!state.connected && (info?.receiver_ip === '0.0.0.0' || info?.discovery_mode)) {
+  // Actively discovering — show spinner (backend will push state update when done)
+  if (!state.connected && state.discovering) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-denon-dark p-6">
+        <div className="text-center space-y-4">
+          <div className="w-16 h-16 rounded-2xl bg-denon-card border border-denon-border flex items-center justify-center mx-auto">
+            <svg className="w-8 h-8 text-denon-gold animate-pulse" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+              <path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/>
+            </svg>
+          </div>
+          <div>
+            <p className="text-denon-text font-semibold">Searching for receiver…</p>
+            <p className="text-denon-muted text-sm mt-1">Scanning your network for Denon / Marantz AVRs</p>
+          </div>
+          <div className="flex justify-center gap-1.5 pt-1">
+            {[0, 1, 2].map(i => (
+              <div key={i} className="w-2 h-2 rounded-full bg-denon-gold animate-bounce" style={{ animationDelay: `${i * 0.15}s` }} />
+            ))}
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  // Discovery finished but no receiver found — show setup screen
+  if (!state.connected) {
     const reason = info?.receiver_ip === '0.0.0.0' ? 'no_host' : 'connect_failed'
     return <ReceiverSetup reason={reason} onConnect={() => window.location.reload()} />
   }
