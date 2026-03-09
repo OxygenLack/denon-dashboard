@@ -189,14 +189,14 @@ async def lifespan(app: FastAPI):
 
     try:
         await telnet.connect()
-        _LOGGER.info("Telnet connected to %s:%s", settings.denon_host, settings.denon_telnet_port)
+        _LOGGER.info("Telnet connected to %s:%s", host, settings.denon_telnet_port)
     except Exception as exc:
         _LOGGER.error(
             "Initial telnet connection failed: %s (will retry in background)", exc
         )
 
     # Connect HEOS (for media controls)
-    heos = HeosClient(settings.denon_host)
+    heos = HeosClient(host or "")
     try:
         await heos.connect()
     except Exception as exc:
