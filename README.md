@@ -6,7 +6,7 @@ A modern, real-time web dashboard for controlling Denon/Marantz AVR receivers. B
 
 > **Disclaimer:** This is an unofficial, community-developed project. Not affiliated with or endorsed by Denon, Marantz, or Sound United/Masimo. All product names and trademarks are the property of their respective owners.
 
-![Denon Dashboard Screenshot](docs/screenshot.jpg)
+![Denon Dashboard Screenshot](docs/preview.png)
 
 ## Features
 
