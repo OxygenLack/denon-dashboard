@@ -213,8 +213,9 @@ async def discover_receivers(timeout: float = 4.0) -> list[dict[str, Any]]:
                 seen[ip] = r
 
     if not seen:
-        _LOGGER.info("SSDP discovery found no devices")
-        return []
+        _LOGGER.info("SSDP discovery found no devices — trying subnet scan fallback")
+        subnets = await asyncio.get_event_loop().run_in_executor(None, _get_local_subnets)
+        return await _subnet_scan(subnets, timeout=timeout)
 
     async def enrich(ip: str, info: dict) -> dict:
         model = await loop.run_in_executor(None, _get_model_from_location, info.get("location"))
