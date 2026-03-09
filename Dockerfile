@@ -27,7 +27,8 @@ COPY --from=frontend-build /build/dist /app/static
 # Environment
 ENV STATIC_DIR=/app/static
 ENV PYTHONUNBUFFERED=1
+ENV DENON_DASHBOARD_PORT=8080
 
 EXPOSE 8080
 
-CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8080", "--log-level", "info"]
+CMD ["sh", "-c", "uvicorn main:app --host 0.0.0.0 --port ${DENON_DASHBOARD_PORT} --log-level info"]
