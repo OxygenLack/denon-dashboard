@@ -22,6 +22,18 @@ SSDP_TARGETS = [
 ]
 
 
+def _get_default_iface_ip() -> str:
+    """Get the local IP of the interface used for outbound traffic."""
+    try:
+        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        s.connect(("8.8.8.8", 80))
+        ip = s.getsockname()[0]
+        s.close()
+        return ip
+    except Exception:
+        return "0.0.0.0"
+
+
 def _send_ssdp(st: str, timeout: float) -> list[dict[str, Any]]:
     """Send SSDP M-SEARCH and collect responses (blocking)."""
     msg = (
@@ -35,9 +47,16 @@ def _send_ssdp(st: str, timeout: float) -> list[dict[str, Any]]:
 
     results: list[dict[str, Any]] = []
     try:
+        local_ip = _get_default_iface_ip()
         sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM, socket.IPPROTO_UDP)
         sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         sock.setsockopt(socket.IPPROTO_IP, socket.IP_MULTICAST_TTL, 4)
+        # Bind multicast to the correct outbound interface (important in containers)
+        sock.setsockopt(
+            socket.IPPROTO_IP,
+            socket.IP_MULTICAST_IF,
+            socket.inet_aton(local_ip),
+        )
         sock.settimeout(timeout)
         sock.sendto(msg, (SSDP_ADDR, SSDP_PORT))
 
