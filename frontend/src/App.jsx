@@ -1,4 +1,5 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
+import { applyTheme } from './theme'
 import { useWebSocket } from './hooks/useWebSocket'
 import ReceiverSetup from './components/ReceiverSetup'
 import { useDeviceInfo } from './hooks/useDeviceInfo'
@@ -31,6 +32,11 @@ export default function App() {
   const { post } = useApi()
   const [zone, setZone] = useState('main')
   const [activeSection, setActiveSection] = useState('controls')
+
+  // Apply theme whenever device info loads
+  useEffect(() => {
+    if (info?.theme) applyTheme(info.theme)
+  }, [info?.theme])
 
   // Loading — waiting for first WebSocket message
   if (!state) {

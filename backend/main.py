@@ -387,6 +387,7 @@ async def device_info():
         source_name_map={**DEFAULT_SOURCES, **source_name_cache},
         channel_volumes=telnet.state.get("channel_volumes", {}) if telnet else {},
         receiver_ip=settings.denon_host,
+        theme=settings.theme,
     )
 
 

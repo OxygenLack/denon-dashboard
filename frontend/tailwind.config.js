@@ -5,17 +5,19 @@ export default {
     extend: {
       colors: {
         denon: {
-          gold: '#C5A55A',
-          dark: '#0D0D0D',
-          card: '#1A1A1A',
+          // Accent color — driven by CSS var, set at runtime from theme
+          gold:    'var(--accent)',
+          accent:  'var(--accent)',
+          // Fixed dark palette
+          dark:    '#0D0D0D',
+          card:    '#1A1A1A',
           surface: '#242424',
-          border: '#333333',
-          text: '#E5E5E5',
-          muted: '#888888',
-          accent: '#C5A55A',
-          green: '#4ADE80',
-          red: '#EF4444',
-          blue: '#60A5FA',
+          border:  '#333333',
+          text:    '#E5E5E5',
+          muted:   '#888888',
+          green:   '#4ADE80',
+          red:     '#EF4444',
+          blue:    '#60A5FA',
         },
       },
     },
