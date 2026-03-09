@@ -17,7 +17,7 @@ services:
       - ./backend/data:/app/data
 
   frontend:
-    image: ghcr.io/OxygenLack/denon-dashboard:latest
+    image: ghcr.io/oxygenlack/denon-dashboard:latest
     ports:
       - "3000:3000"
     environment:
