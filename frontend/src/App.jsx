@@ -43,9 +43,10 @@ export default function App() {
     )
   }
 
-  // Show setup screen when no receiver is configured (host defaults to 0.0.0.0)
-  if (!state.connected && info?.receiver_ip === '0.0.0.0') {
-    return <ReceiverSetup onConnect={() => window.location.reload()} />
+  // Show setup screen when no receiver is configured or connection failed
+  if (!state.connected && (info?.receiver_ip === '0.0.0.0' || info?.discovery_mode)) {
+    const reason = info?.receiver_ip === '0.0.0.0' ? 'no_host' : 'connect_failed'
+    return <ReceiverSetup reason={reason} onConnect={() => window.location.reload()} />
   }
 
   const deviceName = info?.device_name || 'Denon AVR'

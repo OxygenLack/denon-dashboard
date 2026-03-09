@@ -1,6 +1,8 @@
 import { useState } from 'react'
 
-export default function ReceiverSetup({ onConnect }) {
+const README_URL = 'https://github.com/OxygenLack/denon-dashboard#quick-start-docker'
+
+export default function ReceiverSetup({ reason, onConnect }) {
   const [scanning, setScanning] = useState(false)
   const [devices, setDevices] = useState(null)
   const [manualIp, setManualIp] = useState('')
@@ -15,8 +17,11 @@ export default function ReceiverSetup({ onConnect }) {
       const res = await fetch('/api/v1/discover')
       const data = await res.json()
       setDevices(data.devices || [])
+      if ((data.devices || []).length === 0) {
+        setError('No receivers found. SSDP auto-discovery requires network_mode: host in your compose.yaml. See the setup guide below.')
+      }
     } catch {
-      setError('Scan failed. Check network connectivity.')
+      setError('Scan failed — the backend may not be reachable.')
     } finally {
       setScanning(false)
     }
@@ -34,7 +39,7 @@ export default function ReceiverSetup({ onConnect }) {
       if (!res.ok) throw new Error(`HTTP ${res.status}`)
       onConnect(ip)
     } catch (e) {
-      setError(`Could not connect to ${ip}: ${e.message}`)
+      setError(`Could not connect to ${ip}. Make sure the receiver is on and reachable.`)
     } finally {
       setConnecting(false)
     }
@@ -42,7 +47,9 @@ export default function ReceiverSetup({ onConnect }) {
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-denon-dark p-6">
-      <div className="w-full max-w-md space-y-6">
+      <div className="w-full max-w-md space-y-5">
+
+        {/* Header */}
         <div className="text-center">
           <div className="w-16 h-16 rounded-2xl bg-denon-card border border-denon-border flex items-center justify-center mx-auto mb-4">
             <svg className="w-8 h-8 text-denon-gold" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
@@ -50,7 +57,34 @@ export default function ReceiverSetup({ onConnect }) {
             </svg>
           </div>
           <h1 className="text-2xl font-bold text-denon-text">Denon Dashboard</h1>
-          <p className="text-denon-muted text-sm mt-1">Connect to your AVR receiver</p>
+          <p className="text-denon-muted text-sm mt-1">No receiver connected</p>
+        </div>
+
+        {/* Status banner */}
+        <div className="bg-amber-500/10 border border-amber-500/30 rounded-2xl p-4 flex gap-3">
+          <svg className="w-5 h-5 text-amber-400 flex-shrink-0 mt-0.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
+            <line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>
+          </svg>
+          <div className="text-sm">
+            {reason === 'no_host' ? (
+              <span className="text-amber-200">
+                Auto-discovery found no receivers. Make sure <code className="text-amber-300 text-xs bg-amber-500/20 px-1 rounded">network_mode: host</code> is set in your compose.yaml so SSDP multicast can reach the network.
+              </span>
+            ) : (
+              <span className="text-amber-200">
+                Could not connect to the configured receiver. Check that the receiver is powered on and reachable on your network.
+              </span>
+            )}
+            <a
+              href={README_URL}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="block mt-1.5 text-amber-400 hover:text-amber-300 underline underline-offset-2"
+            >
+              Setup guide →
+            </a>
+          </div>
         </div>
 
         {/* Auto-discover */}
@@ -70,32 +104,28 @@ export default function ReceiverSetup({ onConnect }) {
             </button>
           </div>
 
-          {devices !== null && !scanning && (
-            devices.length === 0 ? (
-              <p className="text-denon-muted text-sm">No receivers found. Try manual entry below.</p>
-            ) : (
-              <div className="space-y-2">
-                {devices.map(d => (
-                  <button
-                    key={d.ip}
-                    onClick={() => connect(d.ip)}
-                    disabled={connecting}
-                    className="w-full flex items-center justify-between p-3 rounded-xl bg-denon-surface border border-denon-border hover:border-denon-gold/50 transition-colors disabled:opacity-50 text-left"
-                  >
-                    <div>
-                      <p className="text-sm font-medium text-denon-text">{d.model}</p>
-                      <p className="text-xs text-denon-muted mt-0.5">
-                        {d.ip} · Telnet :{d.telnet_port}
-                        {d.heos_available && <span className="ml-1 text-denon-green">· HEOS ✓</span>}
-                      </p>
-                    </div>
-                    <svg className="w-4 h-4 text-denon-gold flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                      <path d="M9 18l6-6-6-6"/>
-                    </svg>
-                  </button>
-                ))}
-              </div>
-            )
+          {devices !== null && !scanning && devices.length > 0 && (
+            <div className="space-y-2">
+              {devices.map(d => (
+                <button
+                  key={d.ip}
+                  onClick={() => connect(d.ip)}
+                  disabled={connecting}
+                  className="w-full flex items-center justify-between p-3 rounded-xl bg-denon-surface border border-denon-border hover:border-denon-gold/50 transition-colors disabled:opacity-50 text-left"
+                >
+                  <div>
+                    <p className="text-sm font-medium text-denon-text">{d.model}</p>
+                    <p className="text-xs text-denon-muted mt-0.5">
+                      {d.ip} · Telnet :{d.telnet_port}
+                      {d.heos_available && <span className="ml-1 text-denon-green">· HEOS ✓</span>}
+                    </p>
+                  </div>
+                  <svg className="w-4 h-4 text-denon-gold flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <path d="M9 18l6-6-6-6"/>
+                  </svg>
+                </button>
+              ))}
+            </div>
           )}
         </div>
 
@@ -121,10 +151,17 @@ export default function ReceiverSetup({ onConnect }) {
           </div>
           <p className="text-xs text-denon-muted">
             Find the IP in your router's device list or the receiver's network settings menu.
+            You can also set <code className="text-denon-gold/80 text-xs">DENON_DASHBOARD_DENON_HOST</code> in your compose.yaml to skip discovery entirely.
           </p>
         </div>
 
-        {error && <p className="text-center text-sm text-red-400">{error}</p>}
+        {/* Error */}
+        {error && (
+          <div className="bg-red-500/10 border border-red-500/30 rounded-xl p-3 text-sm text-red-300">
+            {error}
+          </div>
+        )}
+
       </div>
     </div>
   )
