@@ -110,7 +110,31 @@ All configuration is via environment variables with the `DENON_DASHBOARD_` prefi
 | `DENON_DASHBOARD_DENON_ZONE1_NAME` | `Main Zone` | Main zone tab label. |
 | `DENON_DASHBOARD_DENON_ZONE2_NAME` | `Zone 2` | Zone 2 tab label. |
 | `DENON_DASHBOARD_DENON_SOURCE_NAMES` | `{}` | JSON map of source codes → display names. |
+| `DENON_DASHBOARD_THEME` | `gold` | UI accent color. See [Themes](#themes) below. |
 | `DENON_DASHBOARD_LOG_LEVEL` | `INFO` | Log verbosity (`DEBUG`, `INFO`, `WARNING`, `ERROR`). |
+
+## Themes
+
+Change the accent color via the `DENON_DASHBOARD_THEME` environment variable:
+
+| Value | Color |
+|---|---|
+| `gold` | 🟡 Amber/Gold *(default)* |
+| `blue` | 🔵 Blue |
+| `red` | 🔴 Red |
+| `green` | 🟢 Green |
+| `olive` | 🫒 Olive / Yellow-green |
+| `violet` | 🟣 Violet |
+| `purple` | 💜 Purple |
+| `pink` | 🩷 Pink |
+| `orange` | 🟠 Orange |
+
+```yaml
+environment:
+  - DENON_DASHBOARD_THEME=purple
+```
+
+---
 
 **How auto-discovery works:** On startup, the dashboard sends an SSDP/UPnP multicast search (`239.255.255.250:1900`) to find Denon/Marantz receivers. If SSDP gets no response, it falls back to a subnet port scan (port 23) — slower (~30s) but works on networks where multicast is blocked. The UI shows a "Searching…" spinner while this happens and connects automatically when found. Requires `network_mode: host`.
 
