@@ -12,7 +12,7 @@ export function useDeviceInfo() {
   }, [])
 
   const refresh = () => {
-    fetch('/api/v1/device/refresh', { method: 'POST' })
+    fetch('/api/v1/refresh', { method: 'POST' })
       .then(() => fetch('/api/v1/device'))
       .then(r => r.json())
       .then(data => setInfo(data))

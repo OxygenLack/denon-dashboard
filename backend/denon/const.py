@@ -112,6 +112,7 @@ SURROUND_MODES = [
 # Query commands for full status poll
 QUERY_COMMANDS = [
     "PW?", "ZM?", "MV?", "MU?", "SI?", "MS?", "CV?",
+    "SSFUN ?",
     "PSTONE CTRL ?", "PSBAS ?", "PSTRE ?",
     "PSSWL ?", "PSDIL ?",
     "PSMULTEQ: ?", "PSDYNEQ ?", "PSDYNVOL ?",

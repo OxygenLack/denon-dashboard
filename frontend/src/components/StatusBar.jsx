@@ -1,6 +1,7 @@
 import { useState } from 'react'
+import ThemePicker from './ThemePicker'
 
-export default function StatusBar({ deviceName, state, wsConnected, receiverIp }) {
+export default function StatusBar({ deviceName, state, wsConnected, receiverIp, currentTheme, onThemeChange }) {
   const [expanded, setExpanded] = useState(false)
   const telnetOk = state?.connected
   const power = state?.power
@@ -10,14 +11,17 @@ export default function StatusBar({ deviceName, state, wsConnected, receiverIp }
     <div className="pt-5 pb-3">
       <div className="flex items-center justify-between mb-1">
         <h1 className="text-lg font-bold text-denon-text tracking-tight">{deviceName}</h1>
-        <button
-          onClick={() => setExpanded(!expanded)}
-          className={`${ok ? 'badge-green' : 'badge-red'} cursor-pointer hover:brightness-110 transition-all`}
-        >
-          <span className={`w-2 h-2 rounded-full ${ok ? 'bg-denon-green animate-pulse' : 'bg-denon-red'}`} />
-          {ok ? 'Connected' : 'Disconnected'}
-          <svg className={`w-3 h-3 transition-transform ${expanded ? 'rotate-180' : ''}`} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M6 9l6 6 6-6"/></svg>
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => setExpanded(!expanded)}
+            className={`${ok ? 'badge-green' : 'badge-red'} cursor-pointer hover:brightness-110 transition-all`}
+          >
+            <span className={`w-2 h-2 rounded-full ${ok ? 'bg-denon-green animate-pulse' : 'bg-denon-red'}`} />
+            {ok ? 'Connected' : 'Disconnected'}
+            <svg className={`w-3 h-3 transition-transform ${expanded ? 'rotate-180' : ''}`} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M6 9l6 6 6-6"/></svg>
+          </button>
+          <ThemePicker currentTheme={currentTheme} onThemeChange={onThemeChange} />
+        </div>
       </div>
 
       {expanded && (

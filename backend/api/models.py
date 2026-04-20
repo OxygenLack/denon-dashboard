@@ -105,6 +105,7 @@ class DeviceInfoResponse(BaseModel):
     sources: list[dict[str, str]] = []
     source_name_map: dict[str, str] = {}
     channel_volumes: dict[str, int] = {}
+    channel_names: dict[str, str] = {}
     receiver_ip: str | None = None
     theme: str = "gold"
 
