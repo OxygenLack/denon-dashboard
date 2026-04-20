@@ -4,14 +4,18 @@ services:
     container_name: denon-dashboard
     restart: unless-stopped
 
-    # network_mode: host is required for SSDP auto-discovery (multicast).
-    # Remove this and use 'ports' below if you use Traefik or want a fixed port mapping.
-    network_mode: host
+    # ── Network Mode ───────────────────────────────────────────────────────────
+    # Use network_mode: host for SSDP auto-discovery (multicast).
+    # Default: bridge mode with port mapping (works with Traefik / reverse proxies).
+    #network_mode: host
+
+    ports:
+      - "8080:8080"
 
     environment:
       # ── Discovery ────────────────────────────────────────────────────────────
-      # Leave empty for automatic SSDP discovery (recommended).
-      # Set to your receiver's IP if auto-discovery doesn't work on your network.
+      # Leave empty for automatic SSDP discovery (requires network_mode: host).
+      # Set to your receiver's IP if using bridge mode or auto-discovery doesn't work.
       - DENON_DASHBOARD_DENON_HOST=
 
       # ── Port ─────────────────────────────────────────────────────────────────
@@ -26,13 +30,8 @@ services:
       #- DENON_DASHBOARD_DENON_SOURCE_NAMES={"GAME":"Game Console","TV":"TV Audio","NET":"Streaming","BD":"Blu-ray","BT":"Bluetooth"}
       #- DENON_DASHBOARD_LOG_LEVEL=INFO
 
-    # ── Ports (bridge mode / Traefik) ─────────────────────────────────────────
-    # Uncomment and remove network_mode: host if you use Traefik or bridge networking.
-    # Auto-discovery will NOT work in bridge mode — set DENON_DASHBOARD_DENON_HOST explicitly.
-    #ports:
-    #  - "8080:8080"
-
     # ── Traefik labels (optional) ─────────────────────────────────────────────
+    # See compose.override.yaml for a working example with Traefik.
     #labels:
     #  - "traefik.enable=true"
     #  - "traefik.http.routers.denon-dashboard.rule=Host(`denon.example.com`)"
