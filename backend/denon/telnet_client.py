@@ -43,6 +43,7 @@ class DenonTelnetClient:
         self._heartbeat_task: asyncio.Task | None = None
         self._reconnect_task: asyncio.Task | None = None
         self._shutting_down = False
+        self._reconnecting = False
 
         # state
         self.state: dict[str, Any] = {
@@ -53,6 +54,7 @@ class DenonTelnetClient:
             "source": None,
             "surround_mode": None,
             "channel_volumes": {},
+            "source_names": {},  # discovered via SSFUN: {code: display_name}
             "tone_control": None,
             "bass": None,
             "treble": None,
@@ -199,24 +201,28 @@ class DenonTelnetClient:
         _LOGGER.warning("Connection lost to %s", self.host)
         self._connected = False
         await self._notify()
-        if not self._shutting_down:
+        if not self._shutting_down and not self._reconnecting:
+            self._reconnecting = True
             self._reconnect_task = asyncio.create_task(self._reconnect_loop())
 
     async def _reconnect_loop(self) -> None:
         attempt = 0
-        while not self._shutting_down:
-            attempt += 1
-            _LOGGER.info("Reconnect attempt %d to %s", attempt, self.host)
-            try:
-                await asyncio.sleep(TELNET_RECONNECT_DELAY)
-                await self.connect()
-                _LOGGER.info("Reconnected to %s", self.host)
-                return
-            except Exception as exc:
-                _LOGGER.warning("Reconnect attempt %d failed: %s", attempt, exc)
-                if TELNET_MAX_RECONNECT and attempt >= TELNET_MAX_RECONNECT:
-                    _LOGGER.error("Max reconnect attempts reached")
+        try:
+            while not self._shutting_down:
+                attempt += 1
+                _LOGGER.info("Reconnect attempt %d to %s", attempt, self.host)
+                try:
+                    await asyncio.sleep(TELNET_RECONNECT_DELAY)
+                    await self.connect()
+                    _LOGGER.info("Reconnected to %s", self.host)
                     return
+                except Exception as exc:
+                    _LOGGER.warning("Reconnect attempt %d failed: %s", attempt, exc)
+                    if TELNET_MAX_RECONNECT and attempt >= TELNET_MAX_RECONNECT:
+                        _LOGGER.error("Max reconnect attempts reached")
+                        return
+        finally:
+            self._reconnecting = False
 
     # -- parser --
 
@@ -362,6 +368,18 @@ class DenonTelnetClient:
             val = line[3:].strip()
             if val != "?" and val:
                 self.state["eco_mode"] = val; changed = True
+
+        # Source function names (SSFUN<CODE> <DisplayName>)
+        elif line.startswith("SSFUN"):
+            payload = line[5:]  # strip "SSFUN"
+            if payload.strip() == "END":
+                pass  # end-of-list sentinel
+            elif " " in payload:
+                code, name = payload.split(" ", 1)
+                name = name.strip()
+                if code and name:
+                    self.state["source_names"][code] = name
+                    changed = True
 
         # Zone 2
         elif line == "Z2ON":

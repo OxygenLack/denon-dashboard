@@ -1,0 +1,152 @@
+"""Centralized application state for the Denon Dashboard backend."""
+from __future__ import annotations
+
+import asyncio
+import json
+import logging
+from typing import Any
+
+from fastapi import WebSocket
+
+from config import settings
+from denon.const import CHANNEL_NAMES, DEFAULT_SOURCES
+from denon.heos_client import HeosClient
+from denon.telnet_client import DenonTelnetClient
+
+_LOGGER = logging.getLogger(__name__)
+
+
+class AppState:
+    """Encapsulates all mutable application state with proper synchronization."""
+
+    def __init__(self) -> None:
+        self.telnet: DenonTelnetClient | None = None
+        self.heos: HeosClient | None = None
+        self.ws_clients: set[WebSocket] = set()
+        self.discovering: bool = False
+        self.speaker_calibration: dict[str, float] = {}
+        self.source_name_cache: dict[str, str] = {}
+        self._lock = asyncio.Lock()
+
+    @property
+    def discovered_sources(self) -> dict[str, str]:
+        """Source names discovered from the receiver via SSFUN."""
+        if self.telnet:
+            return self.telnet.state.get("source_names", {})
+        return {}
+
+    def resolve_source_name(self, code: str | None) -> str | None:
+        """Resolve a source protocol code to a display name.
+
+        Priority: env config > receiver-discovered > built-in defaults > raw code.
+        """
+        if not code:
+            return None
+        if code in self.source_name_cache:
+            return self.source_name_cache[code]
+        discovered = self.discovered_sources
+        if code in discovered:
+            return discovered[code]
+        return DEFAULT_SOURCES.get(code, code)
+
+    def build_status(self) -> dict[str, Any]:
+        """Build status dict from raw telnet state."""
+        state = self.telnet.state if self.telnet else {}
+        src = state.get("source")
+        z2src = state.get("z2_source")
+        return {
+            "connected": self.telnet.connected if self.telnet else False,
+            "discovering": self.discovering,
+            "power": state.get("power"),
+            "volume": state.get("volume"),
+            "volume_max": state.get("volume_max"),
+            "muted": state.get("muted"),
+            "source": src,
+            "source_name": self.resolve_source_name(src),
+            "surround_mode": state.get("surround_mode"),
+            "channel_volumes": state.get("channel_volumes", {}),
+            "speaker_calibration": self.speaker_calibration,
+            "tone_control": state.get("tone_control"),
+            "bass": state.get("bass"),
+            "treble": state.get("treble"),
+            "subwoofer_level": state.get("subwoofer_level"),
+            "subwoofer2_level": state.get("subwoofer2_level"),
+            "dialog_level": state.get("dialog_level"),
+            "dialog_level_enabled": state.get("dialog_level_enabled"),
+            "multeq": state.get("multeq"),
+            "dynamic_eq": state.get("dynamic_eq"),
+            "dynamic_volume": state.get("dynamic_volume"),
+            "ref_level_offset": state.get("ref_level_offset"),
+            "sleep_timer": state.get("sleep_timer"),
+            "eco_mode": state.get("eco_mode"),
+            "z2_power": state.get("z2_power"),
+            "z2_volume": state.get("z2_volume"),
+            "z2_muted": state.get("z2_muted"),
+            "z2_source": z2src,
+            "z2_source_name": self.resolve_source_name(z2src),
+        }
+
+    async def broadcast_state(self) -> None:
+        """Broadcast current state to all connected WebSocket clients."""
+        data = self.build_status()
+        msg = json.dumps(data)
+        dead: set[WebSocket] = set()
+        for ws in self.ws_clients:
+            try:
+                await ws.send_text(msg)
+            except Exception:
+                dead.add(ws)
+        if dead:
+            self.ws_clients.difference_update(dead)
+
+    async def send(self, cmd: str) -> bool:
+        """Send a telnet command, raise if not connected."""
+        if not self.telnet:
+            return False
+        return await self.telnet.send(cmd)
+
+    async def connect_to_host(self, host: str) -> None:
+        """Connect telnet + HEOS for a given host IP."""
+        from calibration import fetch_speaker_calibration
+
+        async with self._lock:
+            self.speaker_calibration = await asyncio.to_thread(
+                fetch_speaker_calibration, host
+            )
+
+            if self.telnet:
+                await self.telnet.disconnect()
+            if self.heos:
+                await self.heos.disconnect()
+
+            telnet_client = DenonTelnetClient(host, settings.denon_telnet_port)
+
+            async def _on_state_change(state: dict[str, Any]) -> None:
+                await self.broadcast_state()
+
+            telnet_client.on_state_change(_on_state_change)
+
+            try:
+                await telnet_client.connect()
+                _LOGGER.info("Telnet connected to %s:%s", host, settings.denon_telnet_port)
+            except Exception as exc:
+                _LOGGER.error(
+                    "Initial telnet connection failed: %s (will retry in background)", exc
+                )
+
+            heos_client = HeosClient(host, settings.denon_heos_port)
+            try:
+                await heos_client.connect()
+            except Exception as exc:
+                _LOGGER.warning("HEOS connection failed: %s", exc)
+
+            # Assign atomically so API never sees half-initialized state
+            self.telnet = telnet_client
+            self.heos = heos_client
+
+        # Notify all connected WebSocket clients that state changed
+        await self.broadcast_state()
+
+
+# Singleton instance — imported by main.py and all route modules
+app_state = AppState()

@@ -174,7 +174,7 @@ async def _subnet_scan(subnets: list[str], timeout: float = 3.0) -> list[dict[st
 
     async def probe(ip: str) -> dict | None:
         async with sem:
-            loop = asyncio.get_event_loop()
+            loop = asyncio.get_running_loop()
             telnet_ok = await loop.run_in_executor(None, _probe_port, ip, TELNET_PORT, 0.3)
             if not telnet_ok:
                 return None
@@ -216,7 +216,7 @@ async def discover_receivers(timeout: float = 4.0) -> list[dict[str, Any]]:
     """
     seen: dict[str, dict] = {}
 
-    loop = asyncio.get_event_loop()
+    loop = asyncio.get_running_loop()
     tasks = [
         loop.run_in_executor(None, _send_ssdp, st, timeout - 1.0)
         for st in SSDP_TARGETS
@@ -233,7 +233,7 @@ async def discover_receivers(timeout: float = 4.0) -> list[dict[str, Any]]:
 
     if not seen:
         _LOGGER.info("SSDP discovery found no devices — trying subnet scan fallback")
-        subnets = await asyncio.get_event_loop().run_in_executor(None, _get_local_subnets)
+        subnets = await asyncio.get_running_loop().run_in_executor(None, _get_local_subnets)
         return await _subnet_scan(subnets, timeout=timeout)
 
     async def enrich(ip: str, info: dict) -> dict:
@@ -252,7 +252,7 @@ async def discover_receivers(timeout: float = 4.0) -> list[dict[str, Any]]:
 
     # Fallback: subnet scan if SSDP found nothing
     if not found:
-        subnets = await asyncio.get_event_loop().run_in_executor(None, _get_local_subnets)
+        subnets = await asyncio.get_running_loop().run_in_executor(None, _get_local_subnets)
         found = await _subnet_scan(subnets, timeout=timeout)
 
     _LOGGER.info("Discovery found %d receiver(s): %s", len(found), [d["ip"] for d in found])

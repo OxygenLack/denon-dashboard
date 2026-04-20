@@ -1,5 +1,5 @@
-import { useState, useEffect } from 'react'
-import { applyTheme } from './theme'
+import { useState, useEffect, memo } from 'react'
+import { getTheme, applyTheme } from './theme'
 import { useWebSocket } from './hooks/useWebSocket'
 import ReceiverSetup from './components/ReceiverSetup'
 import { useDeviceInfo } from './hooks/useDeviceInfo'
@@ -16,7 +16,8 @@ import AudioSettings from './components/AudioSettings'
 import MediaControls from './components/MediaControls'
 import Zone2Controls from './components/Zone2Controls'
 
-const CHANNEL_NAMES = {
+// Fallback channel names if API hasn't loaded yet
+const FALLBACK_CHANNEL_NAMES = {
   FL: 'Front L', FR: 'Front R', C: 'Center', SW: 'Subwoofer',
   SW2: 'Sub 2', SL: 'Surround L', SR: 'Surround R',
   SBL: 'SB Left', SBR: 'SB Right', SB: 'SB',
@@ -26,16 +27,24 @@ const CHANNEL_NAMES = {
   TRL: 'Top R.L', TRR: 'Top R.R',
 }
 
+// Memoize heavy child components to avoid re-renders on every WebSocket push
+const MemoChannelLevels = memo(ChannelLevels)
+const MemoAudioSettings = memo(AudioSettings)
+const MemoSourceSelector = memo(SourceSelector)
+
 export default function App() {
   const { state, wsConnected, sendCommand } = useWebSocket()
   const { info } = useDeviceInfo()
   const { post } = useApi()
   const [zone, setZone] = useState('main')
   const [activeSection, setActiveSection] = useState('controls')
+  const [currentTheme, setCurrentTheme] = useState('gold')
 
-  // Apply theme whenever device info loads
+  // Apply theme whenever device info loads, respecting localStorage override
   useEffect(() => {
-    if (info?.theme) applyTheme(info.theme)
+    const t = getTheme(info?.theme)
+    applyTheme(t)
+    setCurrentTheme(t)
   }, [info?.theme])
 
   // Loading — waiting for first WebSocket message
@@ -77,12 +86,16 @@ export default function App() {
   // Discovery finished but no receiver found — show setup screen
   if (!state.connected) {
     const reason = info?.receiver_ip === '0.0.0.0' ? 'no_host' : 'connect_failed'
-    return <ReceiverSetup reason={reason} onConnect={() => window.location.reload()} />
+    return <ReceiverSetup discovering={info?.discovering} setReceiverIp={setManualIp} onConnect={connectToIp} currentTheme={currentTheme} onThemeChange={setCurrentTheme} />
   }
 
+  // Connected
   const deviceName = info?.device_name || 'Denon AVR'
   const zoneName = info?.zone1_name || 'Main Zone'
   const z2Name = info?.zone2_name || 'Zone 2'
+  const channelNames = (info?.channel_names && Object.keys(info.channel_names).length > 0)
+    ? info.channel_names
+    : FALLBACK_CHANNEL_NAMES
   const sourceNameMap = info?.source_name_map || {}
   const configuredSources = info?.sources || []
 
@@ -100,6 +113,8 @@ export default function App() {
         state={state}
         wsConnected={wsConnected}
         receiverIp={info?.receiver_ip}
+        currentTheme={currentTheme}
+        onThemeChange={setCurrentTheme}
       />
 
       {/* Zone Selector */}
@@ -158,7 +173,7 @@ export default function App() {
                 <PowerControl state={state} sendCommand={sendCommand} zone="main" />
                 <VolumeControl state={state} sendCommand={sendCommand} post={post} />
                 <MediaControls state={state} sendCommand={sendCommand} post={post} />
-                <SourceSelector
+                <MemoSourceSelector
                   state={state}
                   sendCommand={sendCommand}
                   sources={configuredSources}
@@ -170,9 +185,9 @@ export default function App() {
 
             {activeSection === 'speakers' && (
               <>
-                <ChannelLevels
+                <MemoChannelLevels
                   channels={state.channel_volumes || {}}
-                  channelNames={CHANNEL_NAMES}
+                  channelNames={channelNames}
                   sendCommand={sendCommand}
                   post={post}
                   calibration={state.speaker_calibration}
@@ -184,7 +199,7 @@ export default function App() {
             {activeSection === 'audio' && (
               <>
                 <ToneControls state={state} post={post} />
-                <AudioSettings state={state} post={post} />
+                <MemoAudioSettings state={state} post={post} />
               </>
             )}
           </div>

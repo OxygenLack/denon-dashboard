@@ -1,8 +1,9 @@
 import { useState } from 'react'
+import ThemePicker from './ThemePicker'
 
 const README_URL = 'https://github.com/OxygenLack/denon-dashboard#quick-start-docker'
 
-export default function ReceiverSetup({ reason, onConnect }) {
+export default function ReceiverSetup({ reason, onConnect, currentTheme, onThemeChange }) {
   const [scanning, setScanning] = useState(false)
   const [devices, setDevices] = useState(null)
   const [manualIp, setManualIp] = useState('')
@@ -46,7 +47,10 @@ export default function ReceiverSetup({ reason, onConnect }) {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-denon-dark p-6">
+    <div className="min-h-screen flex items-center justify-center bg-denon-dark p-6 relative">
+      <div className="absolute top-4 right-4">
+        <ThemePicker currentTheme={currentTheme} onThemeChange={onThemeChange} />
+      </div>
       <div className="w-full max-w-md space-y-5">
 
         {/* Header */}

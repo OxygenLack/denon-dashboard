@@ -7,9 +7,13 @@ from pydantic_settings import BaseSettings
 
 
 class Settings(BaseSettings):
+    # Dashboard port
+    port: int = 8080
+
     # Receiver IP — leave empty to enable auto-discovery via SSDP
     denon_host: str = ""
     denon_telnet_port: int = 23
+    denon_heos_port: int = 1255
 
     # Optional display names (auto-detected via telnet if not set)
     denon_device_name: str = "Denon AVR"
@@ -21,6 +25,9 @@ class Settings(BaseSettings):
 
     # UI theme: gold (default), blue, red, green, olive, violet, purple, pink, orange
     theme: str = "gold"
+
+    # CORS allowed origins (comma-separated, default: * allows all)
+    cors_origins: str = "*"
 
     log_level: str = "INFO"
 
