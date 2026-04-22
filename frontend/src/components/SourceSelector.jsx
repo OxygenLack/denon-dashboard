@@ -5,11 +5,17 @@ const BluetoothIcon = () => (
   </svg>
 )
 
+const SpotifyIcon = () => (
+  <svg viewBox="0 0 24 24" fill="currentColor" className="inline w-4 h-4 align-text-bottom">
+    <path d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20zm4.6 14.4a.6.6 0 0 1-.84.2c-2.3-1.4-5.2-1.72-8.6-.94a.6.6 0 1 1-.28-1.18c3.74-.86 6.94-.48 9.52 1.08a.6.6 0 0 1 .2.84zm1.22-2.72a.78.78 0 0 1-1.06.26c-2.64-1.62-6.66-2.1-9.78-1.14a.78.78 0 0 1-.46-1.5c3.56-1.08 7.98-.56 11.04 1.3a.78.78 0 0 1 .26 1.08zm.1-2.84C14.68 8.86 9.38 8.68 6.3 9.6a.94.94 0 0 1-.54-1.8c3.54-1.06 9.4-.86 13.1 1.34a.94.94 0 0 1-.94 1.64z" />
+  </svg>
+)
+
 const SOURCE_ICONS = {
   GAME: '🎮', BD: '📀', TV: '📺', 'SAT/CBL': '📡', MPLAY: '▶️',
   NET: '🌐', BT: <BluetoothIcon />, AUX1: '🖥️', AUX2: '🔌', CD: '💿',
   TUNER: '📻', PHONO: '🎵', DVD: '📀', USB: '💾', 'USB/IPOD': '💾',
-  SPOTIFY: '🎵', PANDORA: '🎵', SIRIUSXM: '📻', HDRADIO: '📻',
+  SPOTIFY: <SpotifyIcon />, PANDORA: '🎵', SIRIUSXM: '📻', HDRADIO: '📻',
   IRADIO: '📻', SERVER: '🖥️', FAVORITES: '⭐',
 }
 
