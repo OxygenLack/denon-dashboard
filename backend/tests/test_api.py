@@ -211,6 +211,11 @@ async def test_media_play(mock_app_state):
 async def test_media_now_playing(mock_app_state):
     from main import app
 
+    # Pre-populate cached media state (normally filled by background poller)
+    mock_app_state.media_state = {
+        "now_playing": {"song": "Test Song"},
+        "play_state": "play",
+    }
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://test") as ac:
         resp = await ac.get("/api/v1/media/now-playing")

@@ -26,6 +26,8 @@ class AppState:
         self.discovering: bool = False
         self.speaker_calibration: dict[str, float] = {}
         self.source_name_cache: dict[str, str] = {}
+        self.media_state: dict[str, Any] = {"now_playing": None, "play_state": None}
+        self._media_poll_task: asyncio.Task | None = None
         self._lock = asyncio.Lock()
 
     @property
@@ -84,6 +86,8 @@ class AppState:
             "z2_muted": state.get("z2_muted"),
             "z2_source": z2src,
             "z2_source_name": self.resolve_source_name(z2src),
+            "now_playing": self.media_state.get("now_playing"),
+            "play_state": self.media_state.get("play_state"),
         }
 
     async def broadcast_state(self) -> None:
@@ -105,12 +109,35 @@ class AppState:
             return False
         return await self.telnet.send(cmd)
 
+    async def _poll_media(self) -> None:
+        """Background task: poll HEOS for now-playing every 5s, broadcast on change."""
+        while True:
+            try:
+                await asyncio.sleep(5)
+                if not self.heos or not self.heos.connected:
+                    continue
+                now_playing = await self.heos.get_now_playing()
+                play_state = await self.heos.get_play_state()
+                new_state = {"now_playing": now_playing, "play_state": play_state}
+                if new_state != self.media_state:
+                    self.media_state = new_state
+                    await self.broadcast_state()
+            except asyncio.CancelledError:
+                return
+            except Exception as exc:
+                _LOGGER.debug("Media poll error: %s", exc)
+
     async def connect_to_host(self, host: str) -> None:
         """Connect telnet + HEOS for a given host IP."""
         from calibration import fetch_speaker_calibration
 
         async with self._lock:
             self.speaker_calibration = await fetch_speaker_calibration(host)
+
+            # Stop previous media poller
+            if self._media_poll_task:
+                self._media_poll_task.cancel()
+                self._media_poll_task = None
 
             if self.telnet:
                 await self.telnet.disconnect()
@@ -141,6 +168,10 @@ class AppState:
             # Assign atomically so API never sees half-initialized state
             self.telnet = telnet_client
             self.heos = heos_client
+
+            # Start media poller if HEOS connected
+            if heos_client.connected:
+                self._media_poll_task = asyncio.create_task(self._poll_media())
 
         # Notify all connected WebSocket clients that state changed
         await self.broadcast_state()

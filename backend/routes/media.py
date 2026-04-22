@@ -60,8 +60,5 @@ async def media_previous():
 
 @router.get("/now-playing")
 async def media_now_playing():
-    if not app_state.heos:
-        raise HTTPException(503, "HEOS not connected")
-    info = await app_state.heos.get_now_playing()
-    play_state = await app_state.heos.get_play_state()
-    return {"now_playing": info, "play_state": play_state}
+    """Return cached now-playing info (updated by background poller)."""
+    return app_state.media_state

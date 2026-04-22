@@ -100,6 +100,8 @@ class StatusResponse(BaseModel):
     z2_source: str | None = None
     z2_source_name: str | None = None
     speaker_calibration: dict[str, float] = {}
+    now_playing: dict[str, Any] | None = None
+    play_state: str | None = None
 
 
 class DeviceInfoResponse(BaseModel):

@@ -1,37 +1,17 @@
-import { useState, useEffect, useCallback } from 'react'
-
 const MEDIA_SOURCES = ['NET', 'MPLAY', 'BT', 'USB', 'USB/IPOD', 'SPOTIFY', 'PANDORA', 'SIRIUSXM', 'IRADIO', 'SERVER', 'FAVORITES']
 
 export default function MediaControls({ state, sendCommand, post, zone = 'main' }) {
   const source = zone === 'main' ? state?.source : state?.z2_source
   const mediaCapable = MEDIA_SOURCES.includes(source)
-  const [nowPlaying, setNowPlaying] = useState(null)
-  const [playState, setPlayState] = useState(null)
 
-  const fetchNowPlaying = useCallback(async () => {
-    try {
-      const base = window.location.origin
-      const resp = await fetch(`${base}/api/v1/media/now-playing`)
-      if (resp.ok) {
-        const data = await resp.json()
-        setNowPlaying(data.now_playing)
-        setPlayState(data.play_state)
-      }
-    } catch { /* ignore */ }
-  }, [])
-
-  useEffect(() => {
-    if (!mediaCapable) { setNowPlaying(null); return }
-    fetchNowPlaying()
-    const iv = setInterval(fetchNowPlaying, 5000)
-    return () => clearInterval(iv)
-  }, [mediaCapable, fetchNowPlaying])
+  // Now-playing data comes from WebSocket state (backend polls HEOS once for all clients)
+  const nowPlaying = state?.now_playing
+  const playState = state?.play_state
 
   const doMedia = async (action) => {
     try {
       const base = window.location.origin
       await fetch(`${base}/api/v1/media/${action}`, { method: 'POST' })
-      setTimeout(fetchNowPlaying, 500)
     } catch { /* ignore */ }
   }
 
