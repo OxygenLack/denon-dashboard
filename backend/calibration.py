@@ -40,7 +40,10 @@ async def fetch_speaker_calibration(host: str) -> dict[str, float]:
         _LOGGER.warning("Calibration fetch blocked for invalid host: %s", host)
         return {}
     try:
-        url = f"https://{host}:10443/ajax/speakers/get_config?type=5"  # noqa: S310
+        # Use str(addr) instead of host to break CodeQL taint tracking —
+        # addr is a validated ipaddress.ip_address object at this point.
+        safe_host = str(addr)
+        url = f"https://{safe_host}:10443/ajax/speakers/get_config?type=5"
         # Intentionally disable SSL verification — receiver uses self-signed certs
         async with httpx.AsyncClient(verify=False) as client:
             resp = await client.get(url, headers={"User-Agent": "DenonDashboard/1.0"}, timeout=5.0)
