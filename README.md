@@ -112,6 +112,7 @@ All configuration is via environment variables with the `DENON_DASHBOARD_` prefi
 | `DENON_DASHBOARD_DENON_SOURCE_NAMES` | `{}` | JSON map of source codes → display names. |
 | `DENON_DASHBOARD_HEOS_SOURCES` | `true` | Include HEOS/network sources (Bluetooth, Internet Radio, Spotify, etc.) in the source list. The receiver's `SSFUN` command only reports physical inputs — this adds the missing network sources automatically. Set to `false` to hide them. |
 | `DENON_DASHBOARD_THEME` | `gold` | UI accent color. See [Themes](#themes) below. |
+| `DENON_DASHBOARD_CORS_ORIGINS` | *(empty)* | Comma-separated list of allowed CORS origins. Empty = same-origin only. Set to `*` to allow all origins (not recommended). |
 | `DENON_DASHBOARD_LOG_LEVEL` | `INFO` | Log verbosity (`DEBUG`, `INFO`, `WARNING`, `ERROR`). |
 
 ## Themes

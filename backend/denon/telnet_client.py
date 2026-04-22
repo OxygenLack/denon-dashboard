@@ -166,6 +166,10 @@ class DenonTelnetClient:
                         await self._handle_disconnect()
                         return
                     buf += chunk
+                    if len(buf) > 102400:  # 100 KB safety limit
+                        _LOGGER.error("Telnet buffer overflow (%d bytes), disconnecting", len(buf))
+                        await self._handle_disconnect()
+                        return
                     # Split on \r (0x0D) — Denon protocol line terminator
                     while b"\r" in buf:
                         line_bytes, buf = buf.split(b"\r", 1)

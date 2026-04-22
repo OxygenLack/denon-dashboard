@@ -30,8 +30,8 @@ class Settings(BaseSettings):
     # UI theme: gold (default), blue, red, green, olive, violet, purple, pink, orange
     theme: str = "gold"
 
-    # CORS allowed origins (comma-separated, default: * allows all)
-    cors_origins: str = "*"
+    # CORS allowed origins (comma-separated). Empty = no CORS headers (same-origin only).
+    cors_origins: str = ""
 
     log_level: str = "INFO"
 

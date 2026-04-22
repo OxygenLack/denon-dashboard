@@ -7,9 +7,6 @@ on:
   pull_request:
     branches: [main]
 
-permissions:
-  contents: read
-
 env:
   REGISTRY: ghcr.io
   IMAGE_NAME: ${{ github.repository }}
@@ -24,7 +21,7 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: "3.13"
+          python-version: "3.12"
 
       - name: Install backend dependencies
         working-directory: backend

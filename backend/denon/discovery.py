@@ -100,13 +100,13 @@ def _get_model_from_location(location: str | None) -> str | None:
     try:
         import ssl
         import urllib.request
-        import xml.etree.ElementTree as ET
+        import defusedxml.ElementTree as ET
 
         ctx = ssl.create_default_context()
         ctx.check_hostname = False
         ctx.verify_mode = ssl.CERT_NONE
         with urllib.request.urlopen(location, timeout=2, context=ctx) as r:
-            xml_data = r.read().decode(errors="ignore")
+            xml_data = r.read(512 * 1024).decode(errors="ignore")
         root = ET.fromstring(xml_data)
         for path in (".//{*}modelName", ".//{*}friendlyName", ".//modelName", ".//friendlyName"):
             el = root.find(path)

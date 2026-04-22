@@ -3,8 +3,11 @@ from __future__ import annotations
 
 import logging
 import ssl
-import xml.etree.ElementTree as ET
+
+import defusedxml.ElementTree as ET
 from urllib.request import urlopen, Request
+
+_MAX_RESPONSE_BYTES = 512 * 1024  # 512 KB
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -35,7 +38,7 @@ def fetch_speaker_calibration(host: str) -> dict[str, float]:
         url = f"https://{host}:10443/ajax/speakers/get_config?type=5"
         req = Request(url, headers={"User-Agent": "DenonDashboard/1.0"})
         with urlopen(req, timeout=5, context=ctx) as resp:
-            data = resp.read().decode()
+            data = resp.read(_MAX_RESPONSE_BYTES).decode()
         root = ET.fromstring(data)
         cal: dict[str, float] = {}
         for sp in root.findall(".//Speaker"):

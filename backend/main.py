@@ -5,11 +5,14 @@ import asyncio
 import json
 import logging
 import os
+import re
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect
+from fastapi import FastAPI, Request, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
+from starlette.middleware.base import BaseHTTPMiddleware
+from starlette.responses import Response
 
 from config import settings
 from denon.discovery import discover_receivers
@@ -85,14 +88,26 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
-# CORS — configurable via DENON_DASHBOARD_CORS_ORIGINS
-cors_origins = [o.strip() for o in settings.cors_origins.split(",")]
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=cors_origins,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
+# Security headers
+class _SecurityHeadersMiddleware(BaseHTTPMiddleware):
+    async def dispatch(self, request: Request, call_next):
+        response: Response = await call_next(request)
+        response.headers["X-Content-Type-Options"] = "nosniff"
+        response.headers["X-Frame-Options"] = "DENY"
+        response.headers["Referrer-Policy"] = "no-referrer"
+        return response
+
+app.add_middleware(_SecurityHeadersMiddleware)
+
+# CORS — configurable via DENON_DASHBOARD_CORS_ORIGINS (empty = same-origin only)
+cors_origins = [o.strip() for o in settings.cors_origins.split(",") if o.strip()]
+if cors_origins:
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=cors_origins,
+        allow_methods=["GET", "POST"],
+        allow_headers=["Content-Type"],
+    )
 
 # ---- Include routers ----
 app.include_router(power.router)
@@ -120,8 +135,10 @@ async def websocket_endpoint(ws: WebSocket):
             data = await ws.receive_text()
             try:
                 msg = json.loads(data)
-                if "command" in msg and app_state.telnet:
-                    await app_state.telnet.send(msg["command"])
+                cmd = msg.get("command")
+                if cmd and app_state.telnet:
+                    if isinstance(cmd, str) and re.fullmatch(r"[A-Z0-9 :?.+/\-]{1,50}", cmd):
+                        await app_state.telnet.send(cmd)
             except json.JSONDecodeError:
                 pass
     except WebSocketDisconnect:

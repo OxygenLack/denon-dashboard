@@ -1,7 +1,7 @@
 """Pydantic models for the API."""
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, Literal
 
 from pydantic import BaseModel, Field
 
@@ -9,7 +9,8 @@ from pydantic import BaseModel, Field
 # -- Request models --
 
 class CommandRequest(BaseModel):
-    command: str = Field(..., description="Raw telnet command (e.g. 'PWON', 'MV50')")
+    command: str = Field(..., pattern=r"^[A-Z0-9 :?.+/\-]{1,50}$",
+                         description="Raw telnet command (e.g. 'PWON', 'MV50')")
 
 
 class VolumeRequest(BaseModel):
@@ -17,7 +18,8 @@ class VolumeRequest(BaseModel):
 
 
 class ChannelVolumeRequest(BaseModel):
-    channel: str = Field(..., description="Channel code (FL, FR, C, SW, SL, SR, etc.)")
+    channel: str = Field(..., pattern=r"^[A-Z0-9]{1,4}$",
+                         description="Channel code (FL, FR, C, SW, SL, SR, etc.)")
     level: int = Field(..., ge=38, le=62, description="Level 38–62 (50 = 0dB)")
 
 
@@ -33,11 +35,13 @@ class SubwooferLevelRequest(BaseModel):
 
 
 class SourceRequest(BaseModel):
-    source: str = Field(..., description="Source command code (e.g. 'GAME', 'BD', 'TV')")
+    source: str = Field(..., pattern=r"^[A-Z0-9/]{1,10}$",
+                        description="Source command code (e.g. 'GAME', 'BD', 'TV')")
 
 
 class SurroundRequest(BaseModel):
-    mode: str = Field(..., description="Surround mode name (e.g. 'STEREO', 'MOVIE')")
+    mode: str = Field(..., pattern=r"^[A-Z0-9 :.]{1,20}$",
+                      description="Surround mode name (e.g. 'STEREO', 'MOVIE')")
 
 
 class Zone2VolumeRequest(BaseModel):
@@ -49,11 +53,11 @@ class DynamicEQRequest(BaseModel):
 
 
 class DynamicVolumeRequest(BaseModel):
-    mode: str = Field(..., description="OFF, LIT, MED, HEV")
+    mode: Literal["OFF", "LIT", "MED", "HEV"]
 
 
 class MultEQRequest(BaseModel):
-    mode: str = Field(..., description="AUDYSSEY, BYP.LR, FLAT, MANUAL, OFF")
+    mode: Literal["AUDYSSEY", "BYP.LR", "FLAT", "MANUAL", "OFF"]
 
 
 class SleepTimerRequest(BaseModel):
@@ -61,7 +65,7 @@ class SleepTimerRequest(BaseModel):
 
 
 class EcoModeRequest(BaseModel):
-    mode: str = Field(..., description="ON, AUTO, OFF")
+    mode: Literal["ON", "AUTO", "OFF"]
 
 
 # -- Response models --

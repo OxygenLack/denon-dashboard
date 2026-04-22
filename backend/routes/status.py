@@ -1,6 +1,7 @@
 """Status, health, device info, discovery, and connection endpoints."""
 from __future__ import annotations
 
+import ipaddress
 import logging
 
 from fastapi import APIRouter, HTTPException
@@ -52,12 +53,21 @@ async def connect_to_receiver(req: CommandRequest):
     if not ip:
         raise HTTPException(400, "IP address required")
 
+    # Validate IP address and reject dangerous targets
+    try:
+        addr = ipaddress.ip_address(ip)
+    except ValueError:
+        raise HTTPException(400, "Invalid IP address")
+    if addr.is_loopback or addr.is_link_local or addr.is_multicast or addr.is_unspecified:
+        raise HTTPException(400, "IP address not allowed")
+
     _LOGGER.info("Connecting to receiver at %s", ip)
 
     try:
         await app_state.connect_to_host(ip)
     except Exception as exc:
-        raise HTTPException(502, f"Could not connect to {ip}: {exc}")
+        _LOGGER.error("Connection failed to %s: %s", ip, exc)
+        raise HTTPException(502, "Could not connect to receiver")
 
     return {"ok": True, "ip": ip}
 
