@@ -129,8 +129,15 @@ async def device_info():
             if ch in CHANNEL_NAMES:
                 active_channels[ch] = CHANNEL_NAMES[ch]
 
+    # Use receiver's friendly name if env var is still the default
+    device_name = settings.denon_device_name
+    if device_name == "Denon AVR" and app_state.telnet:
+        discovered_name = app_state.telnet.state.get("friendly_name")
+        if discovered_name:
+            device_name = discovered_name
+
     return DeviceInfoResponse(
-        device_name=settings.denon_device_name,
+        device_name=device_name,
         zone1_name=settings.denon_zone1_name,
         zone2_name=settings.denon_zone2_name,
         sources=sources,

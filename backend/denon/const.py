@@ -127,6 +127,7 @@ QUERY_COMMANDS = [
     "PW?", "ZM?", "MV?", "MU?", "SI?", "MS?", "CV?",
     "SSFUN ?",
     "SSSOD ?",
+    "NSFRN ?",
     "PSTONE CTRL ?", "PSBAS ?", "PSTRE ?",
     "PSSWL ?", "PSDIL ?",
     "PSMULTEQ: ?", "PSDYNEQ ?", "PSDYNVOL ?",

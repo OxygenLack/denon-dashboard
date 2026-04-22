@@ -59,6 +59,7 @@ class DenonTelnetClient:
             "channel_volumes": {},
             "source_names": {},  # discovered via SSFUN: {code: display_name}
             "hidden_sources": set(),  # sources marked DEL via SSSOD
+            "friendly_name": None,  # discovered via NSFRN
             "tone_control": None,
             "bass": None,
             "treble": None,
@@ -380,6 +381,13 @@ class DenonTelnetClient:
             val = line[3:].strip()
             if val != "?" and val:
                 self.state["eco_mode"] = val; changed = True
+
+        # Friendly name (NSFRN <name>)
+        elif line.startswith("NSFRN"):
+            name = line[5:].strip()
+            if name and name != "?":
+                self.state["friendly_name"] = name
+                changed = True
 
         # Source function names (SSFUN<CODE> <DisplayName>)
         elif line.startswith("SSFUN"):
