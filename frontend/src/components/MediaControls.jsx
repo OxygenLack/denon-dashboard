@@ -1,4 +1,14 @@
 const MEDIA_SOURCES = ['NET', 'MPLAY', 'BT', 'USB', 'USB/IPOD', 'SPOTIFY', 'PANDORA', 'SIRIUSXM', 'IRADIO', 'SERVER', 'FAVORITES']
+const VALID_ACTIONS = new Set(['play', 'pause', 'stop', 'next', 'previous'])
+
+/** Sanitize album art URL — only allow http(s) to prevent XSS via javascript: or data: URIs. */
+function safeImageUrl(url) {
+  if (!url || typeof url !== 'string') return null
+  try {
+    const parsed = new URL(url)
+    return (parsed.protocol === 'http:' || parsed.protocol === 'https:') ? parsed.href : null
+  } catch { return null }
+}
 
 export default function MediaControls({ state, sendCommand, post, zone = 'main' }) {
   const source = zone === 'main' ? state?.source : state?.z2_source
@@ -9,9 +19,9 @@ export default function MediaControls({ state, sendCommand, post, zone = 'main' 
   const playState = state?.play_state
 
   const doMedia = async (action) => {
+    if (!VALID_ACTIONS.has(action)) return
     try {
-      const base = window.location.origin
-      await fetch(`${base}/api/v1/media/${action}`, { method: 'POST' })
+      await fetch(`/api/v1/media/${action}`, { method: 'POST' })
     } catch { /* ignore */ }
   }
 
@@ -20,7 +30,7 @@ export default function MediaControls({ state, sendCommand, post, zone = 'main' 
   const isPlaying = playState === 'play'
   const song = nowPlaying?.song
   const artist = nowPlaying?.artist
-  const albumArt = nowPlaying?.image_url
+  const albumArt = safeImageUrl(nowPlaying?.image_url)
 
   return (
     <div className="card">
