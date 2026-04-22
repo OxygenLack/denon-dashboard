@@ -100,6 +100,19 @@ DEFAULT_SOURCES = {
     "FVP": "Favorites Play",
 }
 
+# HEOS / network sources that SSFUN ? does not report.
+# Included automatically unless disabled via DENON_DASHBOARD_HEOS_SOURCES=false.
+HEOS_SOURCES = {
+    "NET": "Online Music",
+    "BT": "Bluetooth",
+    "IRADIO": "Internet Radio",
+    "SPOTIFY": "Spotify",
+    "PANDORA": "Pandora",
+    "SIRIUSXM": "SiriusXM",
+    "FAVORITES": "Favorites",
+    "SERVER": "Server",
+}
+
 # Surround modes
 SURROUND_MODES = [
     "MOVIE", "MUSIC", "GAME", "DIRECT", "PURE DIRECT", "STEREO",

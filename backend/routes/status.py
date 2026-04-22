@@ -12,7 +12,7 @@ from api.models import (
     StatusResponse,
 )
 from config import settings
-from denon.const import CHANNEL_NAMES, DEFAULT_SOURCES
+from denon.const import CHANNEL_NAMES, DEFAULT_SOURCES, HEOS_SOURCES
 from denon.discovery import discover_receivers
 from state import app_state
 
@@ -88,6 +88,14 @@ async def device_info():
         if code not in seen:
             sources.append({"id": code, "name": name})
             seen.add(code)
+
+    # Add HEOS / network sources (not reported by SSFUN ?)
+    if settings.heos_sources:
+        for code, name in HEOS_SOURCES.items():
+            if code not in seen:
+                display = app_state.source_name_cache.get(code, name)
+                sources.append({"id": code, "name": display})
+                seen.add(code)
 
     # Also include current source if not in either map
     if app_state.telnet:

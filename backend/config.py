@@ -23,6 +23,10 @@ class Settings(BaseSettings):
     # Custom source names as JSON: {"GAME":"Game Console","BD":"Blu-ray"}
     denon_source_names: str = "{}"
 
+    # Include HEOS/network sources (NET, BT, IRADIO, ...) automatically.
+    # Set to false if you only want physical inputs.
+    heos_sources: bool = True
+
     # UI theme: gold (default), blue, red, green, olive, violet, purple, pink, orange
     theme: str = "gold"
 
