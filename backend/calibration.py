@@ -2,10 +2,8 @@
 from __future__ import annotations
 
 import logging
-import ssl
-
 import defusedxml.ElementTree as ET
-from urllib.request import urlopen, Request
+import httpx
 
 _MAX_RESPONSE_BYTES = 512 * 1024  # 512 KB
 
@@ -22,7 +20,7 @@ SPEAKER_INDEX_MAP = {
 }
 
 
-def fetch_speaker_calibration(host: str) -> dict[str, float]:
+async def fetch_speaker_calibration(host: str) -> dict[str, float]:
     """Fetch Audyssey speaker calibration from receiver HTTP API (best-effort).
 
     Note: SSL verification is intentionally disabled because Denon receivers
@@ -31,14 +29,11 @@ def fetch_speaker_calibration(host: str) -> dict[str, float]:
     if not host or host == "0.0.0.0":
         return {}
     try:
-        # Intentionally disable SSL verification — receiver uses self-signed certs
-        ctx = ssl.create_default_context()
-        ctx.check_hostname = False
-        ctx.verify_mode = ssl.CERT_NONE
         url = f"https://{host}:10443/ajax/speakers/get_config?type=5"
-        req = Request(url, headers={"User-Agent": "DenonDashboard/1.0"})
-        with urlopen(req, timeout=5, context=ctx) as resp:
-            data = resp.read(_MAX_RESPONSE_BYTES).decode()
+        # Intentionally disable SSL verification — receiver uses self-signed certs
+        async with httpx.AsyncClient(verify=False) as client:
+            resp = await client.get(url, headers={"User-Agent": "DenonDashboard/1.0"}, timeout=5.0)
+            data = resp.text[:_MAX_RESPONSE_BYTES]
         root = ET.fromstring(data)
         cal: dict[str, float] = {}
         for sp in root.findall(".//Speaker"):

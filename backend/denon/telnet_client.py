@@ -27,6 +27,9 @@ _LOGGER = logging.getLogger(__name__)
 # regex for channel volume lines: CV<CH> <VAL>
 _CV_RE = re.compile(r"^CV([A-Z0-9]+)\s+(\d+)$")
 
+# Strict validation for raw telnet commands
+_COMMAND_RE = re.compile(r"^[A-Z0-9 :?.+/\-]{1,50}$")
+
 
 class DenonTelnetClient:
     """Async telnet client for Denon AVR."""
@@ -128,6 +131,10 @@ class DenonTelnetClient:
 
     async def send(self, command: str) -> bool:
         """Send a raw telnet command (without CR)."""
+        if not isinstance(command, str) or not _COMMAND_RE.match(command):
+            _LOGGER.warning("Invalid command rejected: %s", command)
+            return False
+            
         if not self._connected or not self._writer:
             _LOGGER.warning("Not connected, cannot send: %s", command)
             return False

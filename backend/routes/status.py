@@ -53,13 +53,13 @@ async def connect_to_receiver(req: CommandRequest):
     if not ip:
         raise HTTPException(400, "IP address required")
 
-    # Validate IP address and reject dangerous targets
+    # Validate IP address and reject dangerous/external targets
     try:
         addr = ipaddress.ip_address(ip)
     except ValueError:
         raise HTTPException(400, "Invalid IP address")
-    if addr.is_loopback or addr.is_link_local or addr.is_multicast or addr.is_unspecified:
-        raise HTTPException(400, "IP address not allowed")
+    if not addr.is_private or addr.is_loopback or addr.is_link_local:
+        raise HTTPException(400, "IP address not allowed (must be a private LAN IP)")
 
     _LOGGER.info("Connecting to receiver at %s", ip)
 

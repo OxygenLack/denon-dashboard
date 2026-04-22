@@ -110,9 +110,7 @@ class AppState:
         from calibration import fetch_speaker_calibration
 
         async with self._lock:
-            self.speaker_calibration = await asyncio.to_thread(
-                fetch_speaker_calibration, host
-            )
+            self.speaker_calibration = await fetch_speaker_calibration(host)
 
             if self.telnet:
                 await self.telnet.disconnect()

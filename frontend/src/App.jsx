@@ -31,6 +31,10 @@ const FALLBACK_CHANNEL_NAMES = {
 const MemoChannelLevels = memo(ChannelLevels)
 const MemoAudioSettings = memo(AudioSettings)
 const MemoSourceSelector = memo(SourceSelector)
+const MemoVolumeControl = memo(VolumeControl)
+const MemoPowerControl = memo(PowerControl)
+const MemoStatusBar = memo(StatusBar)
+const MemoMediaControls = memo(MediaControls)
 
 export default function App() {
   const { state, wsConnected, sendCommand } = useWebSocket()
@@ -108,7 +112,7 @@ export default function App() {
   return (
     <div className="max-w-2xl mx-auto px-4 pb-8 min-h-screen">
       {/* Header + Health */}
-      <StatusBar
+      <MemoStatusBar
         deviceName={deviceName}
         state={state}
         wsConnected={wsConnected}
@@ -170,9 +174,9 @@ export default function App() {
           <div className="space-y-4 fade-in" key={activeSection}>
             {activeSection === 'controls' && (
               <>
-                <PowerControl state={state} sendCommand={sendCommand} zone="main" />
-                <VolumeControl state={state} sendCommand={sendCommand} post={post} />
-                <MediaControls state={state} sendCommand={sendCommand} post={post} />
+                <MemoPowerControl state={state} sendCommand={sendCommand} zone="main" />
+                <MemoVolumeControl state={state} sendCommand={sendCommand} post={post} />
+                <MemoMediaControls state={state} sendCommand={sendCommand} post={post} />
                 <MemoSourceSelector
                   state={state}
                   sendCommand={sendCommand}
