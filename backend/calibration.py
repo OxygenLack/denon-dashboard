@@ -1,7 +1,9 @@
 """Audyssey speaker calibration fetching."""
 from __future__ import annotations
 
+import ipaddress
 import logging
+
 import defusedxml.ElementTree as ET
 import httpx
 
@@ -28,8 +30,17 @@ async def fetch_speaker_calibration(host: str) -> dict[str, float]:
     """
     if not host or host == "0.0.0.0":
         return {}
+    # Validate host is a private IP to prevent SSRF
     try:
-        url = f"https://{host}:10443/ajax/speakers/get_config?type=5"
+        addr = ipaddress.ip_address(host)
+        if not addr.is_private or addr.is_loopback or addr.is_link_local:
+            _LOGGER.warning("Calibration fetch blocked for non-private IP: %s", host)
+            return {}
+    except ValueError:
+        _LOGGER.warning("Calibration fetch blocked for invalid host: %s", host)
+        return {}
+    try:
+        url = f"https://{host}:10443/ajax/speakers/get_config?type=5"  # noqa: S310
         # Intentionally disable SSL verification — receiver uses self-signed certs
         async with httpx.AsyncClient(verify=False) as client:
             resp = await client.get(url, headers={"User-Agent": "DenonDashboard/1.0"}, timeout=5.0)
