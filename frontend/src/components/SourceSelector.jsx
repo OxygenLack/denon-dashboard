@@ -1,6 +1,13 @@
+const BluetoothIcon = () => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"
+       strokeLinecap="round" strokeLinejoin="round" className="inline w-4 h-4 align-text-bottom">
+    <path d="M7 7l10 10-5 5V2l5 5L7 17" />
+  </svg>
+)
+
 const SOURCE_ICONS = {
   GAME: '🎮', BD: '📀', TV: '📺', 'SAT/CBL': '📡', MPLAY: '▶️',
-  NET: '🌐', BT: '🔵', AUX1: '🖥️', AUX2: '🔌', CD: '💿',
+  NET: '🌐', BT: <BluetoothIcon />, AUX1: '🖥️', AUX2: '🔌', CD: '💿',
   TUNER: '📻', PHONO: '🎵', DVD: '📀', USB: '💾', 'USB/IPOD': '💾',
   SPOTIFY: '🎵', PANDORA: '🎵', SIRIUSXM: '📻', HDRADIO: '📻',
   IRADIO: '📻', SERVER: '🖥️', FAVORITES: '⭐',
