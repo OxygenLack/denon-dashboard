@@ -11,7 +11,7 @@ RUN npm run build
 # ============================================================
 # Stage 2: Production image
 # ============================================================
-FROM python:3.12-slim AS production
+FROM python:3.13-slim AS production
 WORKDIR /app
 
 # Create non-root user
