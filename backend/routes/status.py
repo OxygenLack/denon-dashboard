@@ -117,6 +117,11 @@ async def device_info():
                 )
                 seen.add(src)
 
+    # Filter out sources hidden on the receiver (SSSOD DEL)
+    hidden = app_state.telnet.state.get("hidden_sources", set()) if app_state.telnet else set()
+    if hidden:
+        sources = [s for s in sources if s["id"] not in hidden]
+
     # Build channel names for active channels
     active_channels = {}
     if app_state.telnet:

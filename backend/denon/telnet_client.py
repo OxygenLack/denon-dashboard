@@ -58,6 +58,7 @@ class DenonTelnetClient:
             "surround_mode": None,
             "channel_volumes": {},
             "source_names": {},  # discovered via SSFUN: {code: display_name}
+            "hidden_sources": set(),  # sources marked DEL via SSSOD
             "tone_control": None,
             "bass": None,
             "treble": None,
@@ -390,6 +391,21 @@ class DenonTelnetClient:
                 name = name.strip()
                 if code and name:
                     self.state["source_names"][code] = name
+                    changed = True
+
+        # Source on/delete (SSSOD<CODE> USE|DEL)
+        elif line.startswith("SSSOD"):
+            payload = line[5:]  # strip "SSSOD"
+            if payload.strip() == "END":
+                pass
+            elif " " in payload:
+                code, status = payload.rsplit(" ", 1)
+                code = code.strip()
+                if code and status == "DEL":
+                    self.state["hidden_sources"].add(code)
+                    changed = True
+                elif code and status == "USE":
+                    self.state["hidden_sources"].discard(code)
                     changed = True
 
         # Zone 2

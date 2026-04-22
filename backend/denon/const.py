@@ -126,6 +126,7 @@ SURROUND_MODES = [
 QUERY_COMMANDS = [
     "PW?", "ZM?", "MV?", "MU?", "SI?", "MS?", "CV?",
     "SSFUN ?",
+    "SSSOD ?",
     "PSTONE CTRL ?", "PSBAS ?", "PSTRE ?",
     "PSSWL ?", "PSDIL ?",
     "PSMULTEQ: ?", "PSDYNEQ ?", "PSDYNVOL ?",
