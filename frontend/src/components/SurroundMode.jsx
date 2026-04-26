@@ -5,6 +5,16 @@ const COMMON_MODES = [
   'MULTI CH IN', 'MCH STEREO',
 ]
 
+/* Receivers report variant strings (e.g. "DOLBY AUDIO - DSUR" for DOLBY SURROUND).
+   Match when either string contains the other, so the active mode highlights. */
+function isActiveMode(current, mode) {
+  if (!current) return false
+  if (current === mode) return true
+  const c = current.toUpperCase()
+  const m = mode.toUpperCase()
+  return c.includes(m) || m.includes(c)
+}
+
 export default function SurroundMode({ state, sendCommand }) {
   const current = state?.surround_mode
 
@@ -24,7 +34,7 @@ export default function SurroundMode({ state, sendCommand }) {
             key={mode}
             onClick={() => sendCommand(`MS${mode}`)}
             className={`py-2.5 px-3 rounded-xl text-xs font-medium transition-all text-left ${
-              current === mode
+              isActiveMode(current, mode)
                 ? 'bg-denon-gold text-denon-dark ring-2 ring-denon-gold/30'
                 : 'bg-denon-surface text-denon-text hover:bg-denon-border'
             }`}

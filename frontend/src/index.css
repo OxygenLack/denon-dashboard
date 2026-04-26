@@ -65,6 +65,7 @@ input[type="range"]::-webkit-slider-thumb {
   @apply appearance-none w-5 h-5 rounded-full shadow-lg cursor-grab active:cursor-grabbing;
   background: linear-gradient(135deg, var(--accent), var(--accent-dim));
   border: 2px solid #0D0D0D;
+  margin-top: -7px; /* center 20px thumb on 6px track (WebKit doesn't auto-center) */
 }
 input[type="range"]::-moz-range-thumb {
   @apply w-5 h-5 rounded-full shadow-lg cursor-grab active:cursor-grabbing border-0;
