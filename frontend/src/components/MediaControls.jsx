@@ -30,14 +30,20 @@ export default function MediaControls({ state, sendCommand, post, zone = 'main' 
   const isPlaying = playState === 'play'
   const song = nowPlaying?.song
   const artist = nowPlaying?.artist
+  const station = nowPlaying?.station
   const albumArt = safeImageUrl(nowPlaying?.image_url)
+  const streamQuality = state?.stream_quality
+
+  // For radio/stations: show station name when no song title is available
+  const title = song || station
+  const subtitle = artist || (song && station ? station : null)
 
   return (
     <div className="card">
       <h2 className="text-xs font-medium text-denon-muted uppercase tracking-wider mb-3">Now Playing</h2>
 
       {/* Now Playing Info */}
-      {(song || artist) && (
+      {(title || subtitle) && (
         <div className="flex items-center gap-3 mb-4">
           {albumArt && (
             <img
@@ -47,16 +53,23 @@ export default function MediaControls({ state, sendCommand, post, zone = 'main' 
             />
           )}
           <div className="min-w-0 flex-1">
-            {song && <p className="text-sm font-medium text-denon-text truncate">{song}</p>}
-            {artist && <p className="text-xs text-denon-muted truncate">{artist}</p>}
+            {title && <p className="text-sm font-medium text-denon-text truncate">{title}</p>}
+            {subtitle && <p className="text-xs text-denon-muted truncate">{subtitle}</p>}
           </div>
-          <span className={`text-[10px] px-2 py-0.5 rounded-full ${
-            isPlaying
-              ? 'bg-denon-green/10 text-denon-green'
-              : 'bg-denon-surface text-denon-muted'
-          }`}>
-            {isPlaying ? '▶ Playing' : '⏸ Paused'}
-          </span>
+          <div className="flex flex-col items-end gap-1 shrink-0">
+            <span className={`text-[10px] px-2 py-0.5 rounded-full ${
+              isPlaying
+                ? 'bg-denon-green/10 text-denon-green'
+                : 'bg-denon-surface text-denon-muted'
+            }`}>
+              {isPlaying ? '▶ Playing' : '⏸ Paused'}
+            </span>
+            {streamQuality && (
+              <span className="text-[10px] px-2 py-0.5 rounded-full bg-denon-surface text-denon-muted">
+                {streamQuality}
+              </span>
+            )}
+          </div>
         </div>
       )}
 

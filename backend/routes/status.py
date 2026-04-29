@@ -43,7 +43,7 @@ async def discover_endpoint():
         return {"devices": devices}
     except Exception as exc:
         _LOGGER.error("Discovery error: %s", exc)
-        raise HTTPException(500, f"Discovery failed: {exc}")
+        raise HTTPException(500, "Discovery failed")
 
 
 @router.post("/connect")
@@ -101,8 +101,14 @@ async def device_info():
 
     # Add HEOS / network sources (not reported by SSFUN ?)
     if settings.heos_sources:
+        from denon.const import HEOS_REGION_SOURCES
         for code, name in HEOS_SOURCES.items():
             if code not in seen:
+                # Skip region-locked sources not available on this receiver
+                required_services = HEOS_REGION_SOURCES.get(code)
+                if required_services and app_state.heos_available_services:
+                    if not required_services & app_state.heos_available_services:
+                        continue
                 display = app_state.source_name_cache.get(code, name)
                 sources.append({"id": code, "name": display})
                 seen.add(code)

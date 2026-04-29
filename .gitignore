@@ -14,3 +14,5 @@ dist/
 .idea/
 *.log
 .DS_Store
+IP_Protocol_AVR-Xx100.pdf
+compose.override.yaml

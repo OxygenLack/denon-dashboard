@@ -6,6 +6,7 @@ import json
 import logging
 import os
 import re
+import time
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, Request, WebSocket, WebSocketDisconnect
@@ -15,6 +16,7 @@ from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.responses import Response
 
 from config import settings
+from denon.const import COMMAND_PATTERN
 from denon.discovery import discover_receivers
 from routes import power, volume, audio, zone2, media, status
 from state import app_state
@@ -25,6 +27,13 @@ logging.basicConfig(
     format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
 )
 _LOGGER = logging.getLogger("denon_dashboard")
+
+# Compiled command regex from shared constant
+_COMMAND_RE = re.compile(COMMAND_PATTERN)
+
+# ---- WebSocket limits ----
+MAX_WS_CLIENTS = 20
+WS_MSG_RATE_LIMIT = 10  # max messages per second per client
 
 
 # ---- Background discovery ----
@@ -64,15 +73,28 @@ async def lifespan(app: FastAPI):
         list(app_state.source_name_cache.keys()),
     )
 
+    # Track background tasks for graceful shutdown
+    bg_task: asyncio.Task | None = None
+
     host = settings.denon_host
     if host:
         _LOGGER.info("Connecting to configured host %s...", host)
         await app_state.connect_to_host(host)
+        # Preload radio stations in background
+        from routes.media import preload_radio_stations
+        bg_task = asyncio.create_task(preload_radio_stations())
     else:
-        asyncio.create_task(_auto_discover_and_connect())
+        bg_task = asyncio.create_task(_auto_discover_and_connect())
 
     yield
 
+    # Graceful shutdown: cancel background tasks
+    if bg_task and not bg_task.done():
+        bg_task.cancel()
+        try:
+            await bg_task
+        except asyncio.CancelledError:
+            pass
     if app_state.heos:
         await app_state.heos.disconnect()
     if app_state.telnet:
@@ -95,6 +117,17 @@ class _SecurityHeadersMiddleware(BaseHTTPMiddleware):
         response.headers["X-Content-Type-Options"] = "nosniff"
         response.headers["X-Frame-Options"] = "DENY"
         response.headers["Referrer-Policy"] = "no-referrer"
+        response.headers["Permissions-Policy"] = (
+            "camera=(), microphone=(), geolocation=(), payment=()"
+        )
+        response.headers["Content-Security-Policy"] = (
+            "default-src 'self'; "
+            "img-src 'self' http: https:; "
+            "style-src 'self' 'unsafe-inline'; "
+            "script-src 'self'; "
+            "connect-src 'self' ws: wss:; "
+            "frame-ancestors 'none'"
+        )
         return response
 
 app.add_middleware(_SecurityHeadersMiddleware)
@@ -122,6 +155,19 @@ app.include_router(status.router)
 
 @app.websocket("/api/v1/ws")
 async def websocket_endpoint(ws: WebSocket):
+    # Validate Origin to prevent Cross-Site WebSocket Hijacking (CSWSH)
+    origin = ws.headers.get("origin", "")
+    if cors_origins and "*" not in cors_origins:
+        allowed = any(origin == o or origin.startswith(o) for o in cors_origins)
+        if not allowed and origin:  # allow empty origin (non-browser clients)
+            await ws.close(code=4003, reason="Origin not allowed")
+            return
+
+    # Enforce max client cap
+    if len(app_state.ws_clients) >= MAX_WS_CLIENTS:
+        await ws.close(code=4008, reason="Too many clients")
+        return
+
     await ws.accept()
     app_state.ws_clients.add(ws)
     _LOGGER.info("WebSocket client connected (%d total)", len(app_state.ws_clients))
@@ -130,14 +176,26 @@ async def websocket_endpoint(ws: WebSocket):
         if app_state.telnet:
             await ws.send_text(json.dumps(app_state.build_status()))
 
+        # Per-client rate limiting state
+        msg_times: list[float] = []
+
         # Keep alive and handle incoming commands
         while True:
             data = await ws.receive_text()
+
+            # Rate limit: max WS_MSG_RATE_LIMIT messages per second
+            now = time.monotonic()
+            msg_times = [t for t in msg_times if now - t < 1.0]
+            if len(msg_times) >= WS_MSG_RATE_LIMIT:
+                _LOGGER.debug("WebSocket rate limit exceeded, dropping message")
+                continue
+            msg_times.append(now)
+
             try:
                 msg = json.loads(data)
                 cmd = msg.get("command")
                 if cmd and app_state.telnet:
-                    if isinstance(cmd, str) and re.fullmatch(r"[A-Z0-9 :?.+/\-]{1,50}", cmd):
+                    if isinstance(cmd, str) and _COMMAND_RE.fullmatch(cmd):
                         await app_state.telnet.send(cmd)
             except json.JSONDecodeError:
                 pass

@@ -5,12 +5,23 @@ services:
     restart: unless-stopped
 
     # ── Network Mode ───────────────────────────────────────────────────────────
-    # Use network_mode: host for SSDP auto-discovery (multicast).
-    # Default: bridge mode with port mapping (works with Traefik / reverse proxies).
+    # WARNING: network_mode: host exposes ALL container ports to the host network.
+    # Only use if you need SSDP auto-discovery. Prefer setting
+    # DENON_DASHBOARD_DENON_HOST to the receiver IP and using bridge mode
+    # (default) for better isolation.
     #network_mode: host
 
     ports:
       - "8080:8080"
+
+    # ── Security hardening ────────────────────────────────────────────────────
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    read_only: true
+    tmpfs:
+      - /tmp
 
     environment:
       # ── Discovery ────────────────────────────────────────────────────────────

@@ -1,3 +1,18 @@
+import { useState } from 'react'
+import RadioBrowser from './RadioBrowser'
+
+const RadioTowerIcon = () => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"
+       strokeLinecap="round" strokeLinejoin="round" className="w-3.5 h-3.5">
+    <path d="M4.9 19.1C1 15.2 1 8.8 4.9 4.9" />
+    <path d="M7.8 16.2c-2.3-2.3-2.3-6.1 0-8.4" />
+    <path d="M16.2 7.8c2.3 2.3 2.3 6.1 0 8.4" />
+    <path d="M19.1 4.9C23 8.8 23 15.2 19.1 19.1" />
+    <circle cx="12" cy="12" r="2" fill="currentColor" />
+    <path d="M12 14v7" />
+  </svg>
+)
+
 const BluetoothIcon = () => (
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"
        strokeLinecap="round" strokeLinejoin="round" className="inline w-4 h-4 align-text-bottom">
@@ -91,6 +106,7 @@ const DEFAULT_SOURCES = {
 export default function SourceSelector({ state, sendCommand, sources, sourceNameMap, zone = 'main' }) {
   const current = zone === 'main' ? state?.source : state?.z2_source
   const prefix = zone === 'main' ? 'SI' : 'Z2'
+  const [radioBrowserOpen, setRadioBrowserOpen] = useState(false)
 
   const sourceList = sources.length > 0
     ? sources
@@ -98,20 +114,26 @@ export default function SourceSelector({ state, sendCommand, sources, sourceName
 
   const getName = (code) => sourceNameMap?.[code] || DEFAULT_SOURCES[code] || code
 
+  // Backend resolves the actual HEOS service (Spotify, TuneIn, etc.) when source=NET
+  const currentDisplayName = (zone === 'main' ? state?.source_name : state?.z2_source_name) || getName(current)
+  const heosServiceCode = zone === 'main' ? state?.heos_source : null
+
   return (
     <div className="card">
       <div className="flex items-center justify-between mb-3">
         <h2 className="text-xs font-medium text-denon-muted uppercase tracking-wider">Input Source</h2>
         {current && (
           <span className="text-xs text-denon-gold font-medium flex items-center gap-1">
-            <span className="text-base">{getIcon(current, getName(current))}</span>
-            {getName(current)}
+            <span className="text-base">{getIcon(current, currentDisplayName)}</span>
+            {currentDisplayName}
           </span>
         )}
       </div>
       <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
         {sourceList.map(s => {
-          const active = current === s.id
+          const active = heosServiceCode
+            ? s.id === heosServiceCode  // Highlight the specific HEOS service button
+            : current === s.id
           return (
             <button
               key={s.id}
@@ -127,10 +149,21 @@ export default function SourceSelector({ state, sendCommand, sources, sourceName
               {active && (
                 <span className="absolute top-1.5 right-1.5 w-1.5 h-1.5 rounded-full bg-denon-gold" />
               )}
+              {s.id === 'IRADIO' && (
+                <span
+                  onClick={(e) => { e.stopPropagation(); setRadioBrowserOpen(true) }}
+                  className="absolute bottom-1.5 right-1.5 p-1 rounded-lg bg-denon-surface/80 hover:bg-denon-gold/20 hover:text-denon-gold text-denon-muted transition-all cursor-pointer"
+                  title="Browse stations"
+                >
+                  <RadioTowerIcon />
+                </span>
+              )}
             </button>
           )
         })}
       </div>
+
+      <RadioBrowser open={radioBrowserOpen} onClose={() => setRadioBrowserOpen(false)} />
     </div>
   )
 }

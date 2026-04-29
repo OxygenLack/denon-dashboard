@@ -9,6 +9,9 @@ TELNET_MAX_RECONNECT = 0  # unlimited
 TELNET_HEARTBEAT_INTERVAL = 30
 COMMAND_INTERVAL = 0.05  # 50ms between commands per protocol spec
 
+# Strict allowlist for raw telnet commands (shared by telnet_client and WebSocket handler)
+COMMAND_PATTERN = r"^[A-Z0-9 :?.+/\-]{1,50}$"
+
 # Volume
 VOLUME_MIN = 0
 VOLUME_MAX = 98
@@ -113,10 +116,59 @@ HEOS_SOURCES = {
     "SERVER": "Server",
 }
 
-# Surround modes
+# Sources that require a matching HEOS music service to be available.
+# If the service isn't found via browse/get_music_sources, hide the source button.
+# Maps source code → HEOS service names that indicate availability.
+HEOS_REGION_SOURCES = {
+    "PANDORA": {"Pandora"},
+    "SIRIUSXM": {"SiriusXM"},
+}
+
+# Surround mode categories (from OPSMLALL protocol data)
+SURROUND_CATEGORIES = {
+    "MOV": "Movie",
+    "MUS": "Music",
+    "GAM": "Game",
+    "PUR": "Pure/Direct",
+}
+
+# Category cycling commands (sent when clicking a category tab)
+CATEGORY_COMMANDS = {
+    "MOV": "MOVIE",
+    "MUS": "MUSIC",
+    "GAM": "GAME",
+    "PUR": "DIRECT",
+}
+
+# Display name → telnet command mapping for known modes.
+# Dynamically learned mappings from OPSMLALL override these.
+KNOWN_MODE_COMMANDS = {
+    "Stereo": "STEREO",
+    "Direct": "DIRECT",
+    "Pure Direct": "PURE DIRECT",
+    "Multi Ch Stereo": "MCH STEREO",
+    "Mono Movie": "MONO MOVIE",
+    "Rock Arena": "ROCK ARENA",
+    "Jazz Club": "JAZZ CLUB",
+    "Matrix": "MATRIX",
+    "Video Game": "VIDEO GAME",
+    "Virtual": "VIRTUAL",
+    "Dolby Audio - Dolby Surround": "DOLBY AUDIO-DSUR",
+    "Dolby Surround": "DOLBY SURROUND",
+    "Dolby Digital": "DOLBY DIGITAL",
+    "Dolby Atmos": "DOLBY ATMOS",
+    "DTS Neural:X": "NEURAL:X",
+    "DTS Virtual:X": "VIRTUAL:X",
+    "DTS Surround": "DTS SURROUND",
+    "DTS:X": "DTS:X",
+    "Multi Ch In": "MULTI CH IN",
+    "Multi Ch In 7.1": "MULTI CH IN 7.1",
+}
+
+# Fallback surround modes for receivers that don't send OPSMLALL
 SURROUND_MODES = [
-    "MOVIE", "MUSIC", "GAME", "DIRECT", "PURE DIRECT", "STEREO",
-    "AUTO", "DOLBY DIGITAL", "DOLBY SURROUND", "DOLBY ATMOS",
+    "DIRECT", "PURE DIRECT", "STEREO",
+    "DOLBY DIGITAL", "DOLBY SURROUND", "DOLBY ATMOS",
     "DTS SURROUND", "DTS:X", "MULTI CH IN", "MULTI CH IN 7.1",
     "MCH STEREO", "ROCK ARENA", "JAZZ CLUB", "MONO MOVIE",
     "MATRIX", "VIDEO GAME", "VIRTUAL",
@@ -124,7 +176,7 @@ SURROUND_MODES = [
 
 # Query commands for full status poll
 QUERY_COMMANDS = [
-    "PW?", "ZM?", "MV?", "MU?", "SI?", "MS?", "CV?",
+    "PW?", "ZM?", "MV?", "MU?", "SI?", "MS?", "SD?", "CV?",
     "SSFUN ?",
     "SSSOD ?",
     "NSFRN ?",

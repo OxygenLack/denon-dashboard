@@ -7,6 +7,7 @@ export function useWebSocket() {
   const [wsConnected, setWsConnected] = useState(false)
   const wsRef = useRef(null)
   const reconnectTimer = useRef(null)
+  const lastJsonRef = useRef(null) // track serialized state for diffing
 
   const connect = useCallback(() => {
     const proto = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
@@ -25,8 +26,13 @@ export function useWebSocket() {
 
     ws.onmessage = (e) => {
       try {
-        const data = JSON.parse(e.data)
-        setState(data)
+        // Only trigger React re-render if the state payload actually changed.
+        // Avoids unnecessary re-renders from identical WebSocket pushes
+        // (e.g. heartbeat polls that return the same state).
+        if (e.data !== lastJsonRef.current) {
+          lastJsonRef.current = e.data
+          setState(JSON.parse(e.data))
+        }
       } catch {}
     }
 

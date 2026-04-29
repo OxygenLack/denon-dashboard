@@ -53,6 +53,8 @@ def mock_state() -> dict[str, Any]:
         "ref_level_offset": None,
         "sleep_timer": None,
         "eco_mode": "AUTO",
+        "sound_decoder": "AUTO",
+        "surround_mode_list": [],
         "z2_power": False,
         "z2_volume": None,
         "z2_muted": None,

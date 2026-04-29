@@ -40,7 +40,7 @@ class SourceRequest(BaseModel):
 
 
 class SurroundRequest(BaseModel):
-    mode: str = Field(..., pattern=r"^[A-Z0-9 :.]{1,20}$",
+    mode: str = Field(..., pattern=r"^[A-Z0-9 :.\-/+]{1,35}$",
                       description="Surround mode name (e.g. 'STEREO', 'MOVIE')")
 
 
@@ -79,7 +79,10 @@ class StatusResponse(BaseModel):
     muted: bool | None = None
     source: str | None = None
     source_name: str | None = None
+    heos_source: str | None = None
     surround_mode: str | None = None
+    surround_mode_list: list[dict] = []
+    sound_decoder: str | None = None
     channel_volumes: dict[str, int] = {}
     tone_control: bool | None = None
     bass: int | None = None
@@ -102,6 +105,7 @@ class StatusResponse(BaseModel):
     speaker_calibration: dict[str, float] = {}
     now_playing: dict[str, Any] | None = None
     play_state: str | None = None
+    stream_quality: str | None = None
 
 
 class DeviceInfoResponse(BaseModel):

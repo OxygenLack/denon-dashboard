@@ -4,6 +4,7 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
+import re
 from typing import Any
 
 from fastapi import WebSocket
@@ -26,6 +27,7 @@ class AppState:
         self.discovering: bool = False
         self.speaker_calibration: dict[str, float] = {}
         self.source_name_cache: dict[str, str] = {}
+        self.heos_available_services: set[str] = set()  # HEOS service names from receiver
         self.media_state: dict[str, Any] = {"now_playing": None, "play_state": None}
         self._media_poll_task: asyncio.Task | None = None
         self._lock = asyncio.Lock()
@@ -36,6 +38,36 @@ class AppState:
         if self.telnet:
             return self.telnet.state.get("source_names", {})
         return {}
+
+    # HEOS source ID → (telnet source code, display name)
+    # sid comes from now_playing.sid; source code maps to the button in the UI
+    _HEOS_SID_MAP: dict[int, tuple[str, str]] = {
+        4:    ("SPOTIFY",   "Spotify"),        # Spotify Connect
+        3:    ("IRADIO",    "TuneIn"),         # TuneIn
+        5:    ("NET",       "Deezer"),         # Deezer (no dedicated button)
+        9:    ("NET",       "SoundCloud"),     # SoundCloud
+        10:   ("NET",       "Tidal"),          # Tidal
+        13:   ("NET",       "Amazon Music"),   # Amazon Music
+        30:   ("NET",       "Qobuz"),          # Qobuz
+        1024: ("SERVER",    "Local Music"),    # DLNA/UPnP server
+        1025: ("NET",       "Playlists"),      # HEOS Playlists
+        1026: ("NET",       "History"),        # HEOS History
+        1028: ("FAVORITES", "Favorites"),      # HEOS Favorites
+    }
+
+    # Fallback: media ID (exact or prefix) → (telnet source code, display name)
+    _HEOS_MID_PREFIXES: list[tuple[str, str, str]] = [
+        ("spotify:",      "SPOTIFY",   "Spotify"),
+        ("tidal:",        "NET",       "Tidal"),
+        ("amazon_music:", "NET",       "Amazon Music"),
+        ("deezer:",       "NET",       "Deezer"),
+        ("pandora:",      "PANDORA",   "Pandora"),
+        ("siriusxm:",     "SIRIUSXM",  "SiriusXM"),
+        ("soundcloud:",   "NET",       "SoundCloud"),
+        ("tunein:",       "IRADIO",    "TuneIn"),
+        ("iheartradio:",  "IRADIO",    "iHeartRadio"),
+        ("Bluetooth",     "BT",        "Bluetooth"),
+    ]
 
     def resolve_source_name(self, code: str | None) -> str | None:
         """Resolve a source protocol code to a display name.
@@ -51,11 +83,76 @@ class AppState:
             return discovered[code]
         return DEFAULT_SOURCES.get(code, code)
 
+    def _resolve_heos_service(self) -> tuple[str, str] | None:
+        """Detect active HEOS streaming service from now_playing data.
+
+        Returns (source_code, display_name) or None.
+        Checks mid (media ID) first — more specific than sid for shared IDs
+        like sid=1024 which covers both Local Music and Bluetooth.
+        """
+        np = self.media_state.get("now_playing")
+        if not np:
+            return None
+        # Check mid first — most specific identifier
+        mid = np.get("mid", "")
+        if mid:
+            for prefix, code, name in self._HEOS_MID_PREFIXES:
+                if mid.startswith(prefix):
+                    return (code, name)
+        # Fall back to sid
+        sid = np.get("sid")
+        if isinstance(sid, int) and sid in self._HEOS_SID_MAP:
+            return self._HEOS_SID_MAP[sid]
+        return None
+
+    _BITRATE_RE = re.compile(r'[_/-](\d{2,3})(?:k(?:bps)?)?(?:[/.]|$)', re.I)
+
+    def _detect_stream_quality(self) -> str | None:
+        """Best-effort codec/bitrate detection from now_playing mid (stream URL)."""
+        np = self.media_state.get("now_playing")
+        if not np:
+            return None
+        mid = np.get("mid", "")
+        if not mid:
+            return None
+        if mid.startswith("spotify:"):
+            return "Spotify Connect"
+        if mid == "Bluetooth":
+            return "Bluetooth"
+        parts = []
+        ml = mid.lower()
+        if "/aacp" in ml or "/aac+" in ml or "he-aac" in ml:
+            parts.append("AAC+")
+        elif "/aac" in ml or ml.endswith(".aac"):
+            parts.append("AAC")
+        elif "/mp3" in ml or ml.endswith(".mp3"):
+            parts.append("MP3")
+        elif "/flac" in ml or ml.endswith(".flac"):
+            parts.append("FLAC")
+        elif "/ogg" in ml or "/vorbis" in ml:
+            parts.append("OGG")
+        elif "/wma" in ml:
+            parts.append("WMA")
+        elif ".m3u8" in ml or "/hls" in ml:
+            parts.append("HLS")
+        m = self._BITRATE_RE.search(mid)
+        if m:
+            parts.append(f"{m.group(1)} kbps")
+        return " ".join(parts) if parts else None
+
     def build_status(self) -> dict[str, Any]:
         """Build status dict from raw telnet state."""
         state = self.telnet.state if self.telnet else {}
         src = state.get("source")
         z2src = state.get("z2_source")
+        # When source is NET, identify the actual streaming service
+        source_name = self.resolve_source_name(src)
+        heos_source = None
+        if src == "NET":
+            heos = self._resolve_heos_service()
+            if heos:
+                heos_source = heos[0]   # source code for button highlight
+                source_name = heos[1]   # display name
         return {
             "connected": self.telnet.connected if self.telnet else False,
             "discovering": self.discovering,
@@ -64,8 +161,11 @@ class AppState:
             "volume_max": state.get("volume_max"),
             "muted": state.get("muted"),
             "source": src,
-            "source_name": self.resolve_source_name(src),
+            "source_name": source_name,
+            "heos_source": heos_source,
             "surround_mode": state.get("surround_mode"),
+            "surround_mode_list": state.get("surround_mode_list", []),
+            "sound_decoder": state.get("sound_decoder"),
             "channel_volumes": state.get("channel_volumes", {}),
             "speaker_calibration": self.speaker_calibration,
             "tone_control": state.get("tone_control"),
@@ -88,6 +188,7 @@ class AppState:
             "z2_source_name": self.resolve_source_name(z2src),
             "now_playing": self.media_state.get("now_playing"),
             "play_state": self.media_state.get("play_state"),
+            "stream_quality": self._detect_stream_quality(),
         }
 
     async def broadcast_state(self) -> None:
@@ -95,9 +196,9 @@ class AppState:
         data = self.build_status()
         msg = json.dumps(data)
         dead: set[WebSocket] = set()
-        for ws in self.ws_clients:
+        for ws in list(self.ws_clients):  # copy to avoid mutation during iteration
             try:
-                await ws.send_text(msg)
+                await asyncio.wait_for(ws.send_text(msg), timeout=5.0)
             except Exception:
                 dead.add(ws)
         if dead:
@@ -169,8 +270,14 @@ class AppState:
             self.telnet = telnet_client
             self.heos = heos_client
 
-            # Start media poller if HEOS connected
+            # Discover available HEOS music services and start media poller
             if heos_client.connected:
+                try:
+                    sources = await heos_client.get_music_sources()
+                    self.heos_available_services = {s["name"] for s in sources}
+                    _LOGGER.info("HEOS music services: %s", self.heos_available_services)
+                except Exception as exc:
+                    _LOGGER.warning("Failed to fetch HEOS music sources: %s", exc)
                 self._media_poll_task = asyncio.create_task(self._poll_media())
 
         # Notify all connected WebSocket clients that state changed

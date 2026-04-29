@@ -10,9 +10,12 @@ from typing import Any, Callable, Coroutine
 from .const import (
     CHANNEL_NAMES,
     COMMAND_INTERVAL,
+    COMMAND_PATTERN,
     CV_0DB,
     DEFAULT_TELNET_PORT,
+    KNOWN_MODE_COMMANDS,
     QUERY_COMMANDS,
+    SURROUND_CATEGORIES,
     SWL_0DB,
     TELNET_HEARTBEAT_INTERVAL,
     TELNET_MAX_RECONNECT,
@@ -27,8 +30,8 @@ _LOGGER = logging.getLogger(__name__)
 # regex for channel volume lines: CV<CH> <VAL>
 _CV_RE = re.compile(r"^CV([A-Z0-9]+)\s+(\d+)$")
 
-# Strict validation for raw telnet commands
-_COMMAND_RE = re.compile(r"^[A-Z0-9 :?.+/\-]{1,50}$")
+# Strict validation for raw telnet commands (from shared constant)
+_COMMAND_RE = re.compile(COMMAND_PATTERN)
 
 
 class DenonTelnetClient:
@@ -74,11 +77,17 @@ class DenonTelnetClient:
             "sleep_timer": None,
             "eco_mode": None,
             # Zone 2
+            "sound_decoder": None,
+            "surround_mode_list": [],
+            # Zone 2
             "z2_power": None,
             "z2_volume": None,
             "z2_muted": None,
             "z2_source": None,
         }
+
+        # OPSMLALL accumulation buffer
+        self._opsmlall_buffer: list[dict] = []
 
         # callbacks: list of async callables(state_dict)
         self._callbacks: list[Callable[[dict[str, Any]], Coroutine]] = []
@@ -415,6 +424,37 @@ class DenonTelnetClient:
                 elif code and status == "USE":
                     self.state["hidden_sources"].discard(code)
                     changed = True
+
+        # Sound decoder (SDAUTO, SDHDMI, SDDIGITAL, etc.)
+        elif line.startswith("SD"):
+            val = line[2:]
+            if val and val != "?":
+                self.state["sound_decoder"] = val; changed = True
+
+        # Surround mode list (OPSMLALL {CAT}{ID}{ACTIVE}{DisplayName})
+        elif line.startswith("OPSMLALL"):
+            payload = line[9:]  # strip "OPSMLALL "
+            if payload == "END":
+                self.state["surround_mode_list"] = self._opsmlall_buffer
+                self._opsmlall_buffer = []
+                # Command mapping is handled by KNOWN_MODE_COMMANDS at parse time.
+                # No dynamic learning — MS events and OPSMLALL interleave during
+                # rapid cycling, making runtime correlation unreliable.
+                changed = True
+            elif len(payload) >= 7:
+                cat = payload[:3]
+                sort_id = payload[3:5]
+                active = payload[5] == "1"
+                display_name = payload[6:]
+                telnet_cmd = KNOWN_MODE_COMMANDS.get(display_name)
+                self._opsmlall_buffer.append({
+                    "category": cat,
+                    "category_label": SURROUND_CATEGORIES.get(cat, cat),
+                    "id": sort_id,
+                    "active": active,
+                    "display_name": display_name,
+                    "command": telnet_cmd,
+                })
 
         # Zone 2
         elif line == "Z2ON":

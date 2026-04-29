@@ -24,9 +24,11 @@ A modern, real-time web dashboard for controlling Denon/Marantz AVR receivers. B
 - **Power** on/off (main zone only — doesn't affect Zone 2)
 - **Volume** control with slider, +/- buttons, and mute toggle
 - **Input Source** selection with custom names and icons
-- **Surround Mode** switching
+- **Surround Modes** — cycle through categories (Movie/Music/Game/Pure) or pick any mode directly. Shows cycling order with current/next indicators. Info mode explains each mode's speaker layout, purpose, and quirks on hover (desktop) or via toggle (mobile). Mode list dynamically populated from receiver via OPSMLALL protocol data
+- **Internet Radio Browser** — full TuneIn radio browser with category navigation (Local Radio, Trending, Music genres, Sports, Talk, Podcasts, By Location). ~800+ stations preloaded on startup for instant search. Backend caching (1hr TTL) shared across all clients. Play any station directly from the browser. Country/region flag icons, genre icons, station logos
+- **Smart Source Detection** — automatically identifies the active HEOS streaming service (Spotify, TuneIn, Bluetooth, etc.) from the `NET` source using HEOS now-playing data. Highlights the correct source button instead of generic "Online Music". Region-locked services (Pandora, SiriusXM) hidden automatically when unavailable
 - **Media Controls** — play/pause, next/previous for HEOS/streaming sources
-- **Now Playing** — song, artist, album art from Spotify/HEOS
+- **Now Playing** — song, artist, station name, album art. Shows stream quality/bitrate when detectable (e.g., "AAC 128 kbps", "Spotify Connect")
 - **Speaker Levels** — per-channel volume trim with Audyssey calibration offsets
 - **Subwoofer Level**
 - **Tone Controls** — bass/treble (auto-hidden when tone control is off)
@@ -223,14 +225,23 @@ The dashboard exposes a full REST API at `/api/v1/`. All POST endpoints accept J
 
 ### Media (HEOS)
 
-| Method | Endpoint | Description |
-|---|---|---|
-| `POST` | `/api/v1/media/play` | Play |
-| `POST` | `/api/v1/media/pause` | Pause |
-| `POST` | `/api/v1/media/stop` | Stop |
-| `POST` | `/api/v1/media/next` | Next track |
-| `POST` | `/api/v1/media/previous` | Previous track |
-| `GET` | `/api/v1/media/now-playing` | Current track info + play state |
+| Method | Endpoint | Body | Description |
+|---|---|---|---|
+| `POST` | `/api/v1/media/play` | — | Play |
+| `POST` | `/api/v1/media/pause` | — | Pause |
+| `POST` | `/api/v1/media/stop` | — | Stop |
+| `POST` | `/api/v1/media/next` | — | Next track |
+| `POST` | `/api/v1/media/previous` | — | Previous track |
+| `GET` | `/api/v1/media/now-playing` | — | Current track info + play state |
+
+### Internet Radio
+
+| Method | Endpoint | Parameters | Description |
+|---|---|---|---|
+| `GET` | `/api/v1/media/radio/browse` | `?cid=...` (optional) | Browse TuneIn directory. Omit `cid` for top-level categories |
+| `GET` | `/api/v1/media/radio/search` | `?q=search+terms` | Search cached stations (multi-word, all must match) |
+| `POST` | `/api/v1/media/radio/play` | `{"mid": "s280354"}` | Play a station by TuneIn media ID |
+| `POST` | `/api/v1/media/radio/refresh` | — | Clear cache and re-preload all stations |
 
 ### WebSocket
 
@@ -286,6 +297,7 @@ docker build -t denon-dashboard .
 
 Tested with:
 - **Denon AVR-X2700H** (firmware 3.88.614)
+- **Marantz Cinema 60**
 
 Should work with any Denon/Marantz AVR that supports:
 - Telnet control on port 23
@@ -296,6 +308,18 @@ Should work with any Denon/Marantz AVR that supports:
 A companion [Home Assistant integration](https://github.com/OxygenLack/denon-dashboard-ha) is available that connects to this dashboard's API, creating `media_player` entities for both zones. Supports full control including volume, source selection, surround modes, and media playback.
 
 Install via [HACS](https://hacs.xyz/) by adding `https://github.com/OxygenLack/denon-dashboard-ha` as a custom repository, or copy the `custom_components/denon_avr_telnet/` folder manually to your HA config directory.
+
+## Roadmap
+
+### Planned
+- **Night mode / sub presets** — quick-switch subwoofer profiles (e.g., "Movie" vs "Night" with reduced sub level), or a time-based automatic night mode ([requested](https://reddit.com/r/hometheater/comments/1syh2mn/i_got_tired_of_denons_broken_web_ui_so_i_built_my/oiwhfpt/))
+- **Tactile transducer support** — show and control tactile transducer channel on the speaker status page ([requested](https://reddit.com/r/hometheater/comments/1syh2mn/i_got_tired_of_denons_broken_web_ui_so_i_built_my/oiwg22o/))
+- **Dirac slot selection** — switch between Dirac Live filter slots for receivers with Dirac support ([requested](https://reddit.com/r/hometheater/comments/1syh2mn/i_got_tired_of_denons_broken_web_ui_so_i_built_my/oixqkvf/))
+- **HEOS speaker grouping/ungrouping** — group and ungroup HEOS speakers ([requested](https://github.com/OxygenLack/denon-dashboard/issues/6))
+- **Audyssey preset switching** (Preset 1 / Preset 2)
+- Feature parity with the original Denon/Marantz web UI
+
+**Want more?** Open an [issue](https://github.com/OxygenLack/denon-dashboard/issues) or submit a PR — contributions welcome.
 
 ## License
 
