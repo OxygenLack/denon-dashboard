@@ -81,6 +81,10 @@ Open `http://YOUR_HOST:8080` — the dashboard will find your receiver automatic
 
 > **No receiver found?** The dashboard starts immediately and shows a "Searching…" screen while scanning your network. Once found, it connects automatically — no page refresh needed. If it can't find the receiver after ~30 seconds, a setup screen appears where you can enter the IP manually.
 
+### Container platforms
+
+The published image is built for both `linux/amd64` and `linux/arm64`. Docker automatically pulls the matching image for your host, including Raspberry Pi and other ARM64 systems.
+
 ### Manual IP (bridge mode / Traefik)
 
 If you use Traefik or can't use `network_mode: host`, set the IP explicitly:

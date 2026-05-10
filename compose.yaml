@@ -1,6 +1,9 @@
 services:
   denon-dashboard:
     image: ghcr.io/oxygenlack/denon-dashboard:latest
+    # Multi-arch image: linux/amd64 and linux/arm64. Docker picks the host
+    # architecture automatically; uncomment only if you need to pin it.
+    #platform: linux/arm64/v8
     container_name: denon-dashboard
     restart: unless-stopped
 
