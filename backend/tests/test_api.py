@@ -265,3 +265,135 @@ async def test_commands_503_when_disconnected(mock_app_no_connection):
         for endpoint in ["/api/v1/power/on", "/api/v1/volume/up", "/api/v1/mute/on"]:
             resp = await ac.post(endpoint)
             assert resp.status_code == 503, f"{endpoint} should return 503"
+
+
+# ── Android TV ─────────────────────────────────────────────────────────────
+
+@pytest.mark.asyncio
+async def test_androidtv_status():
+    from main import app
+
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test") as ac:
+        resp = await ac.get("/api/v1/androidtv/status")
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["connected"] is False
+    assert "paired" in data
+
+
+@pytest.mark.asyncio
+async def test_androidtv_key(monkeypatch):
+    from main import app
+    from state import app_state
+
+    send_key = AsyncMock(return_value={"ok": True})
+    monkeypatch.setattr(app_state.android_tv, "send_key", send_key)
+
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test") as ac:
+        resp = await ac.post("/api/v1/androidtv/key", json={"key": "DPAD_CENTER"})
+    assert resp.status_code == 200
+    send_key.assert_called_once_with("DPAD_CENTER")
+
+
+@pytest.mark.asyncio
+async def test_androidtv_text(monkeypatch):
+    from main import app
+    from state import app_state
+
+    send_text = AsyncMock(return_value={"ok": True})
+    monkeypatch.setattr(app_state.android_tv, "send_text", send_text)
+
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test") as ac:
+        resp = await ac.post("/api/v1/androidtv/text", json={"text": "Hello"})
+    assert resp.status_code == 200
+    send_text.assert_called_once_with("Hello")
+
+
+@pytest.mark.asyncio
+async def test_androidtv_pair_start(monkeypatch):
+    from main import app
+    from state import app_state
+
+    start_pairing = AsyncMock(return_value={"pairing": True, "host": "192.168.1.120"})
+    monkeypatch.setattr(app_state.android_tv, "start_pairing", start_pairing)
+
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test") as ac:
+        resp = await ac.post("/api/v1/androidtv/pair/start", json={"host": "192.168.1.120"})
+    assert resp.status_code == 200
+    start_pairing.assert_called_once_with("192.168.1.120")
+
+
+@pytest.mark.asyncio
+async def test_androidtv_pair_start_ipv6(monkeypatch):
+    from main import app
+    from state import app_state
+
+    host = "fd00::1234"
+    start_pairing = AsyncMock(return_value={"pairing": True, "host": host})
+    monkeypatch.setattr(app_state.android_tv, "start_pairing", start_pairing)
+
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test") as ac:
+        resp = await ac.post("/api/v1/androidtv/pair/start", json={"host": host})
+    assert resp.status_code == 200
+    start_pairing.assert_called_once_with(host)
+
+
+@pytest.mark.asyncio
+async def test_androidtv_rejects_global_ipv6(monkeypatch):
+    from main import app
+    from state import app_state
+
+    start_pairing = AsyncMock()
+    monkeypatch.setattr(app_state.android_tv, "start_pairing", start_pairing)
+
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test") as ac:
+        resp = await ac.post("/api/v1/androidtv/pair/start", json={"host": "2001:4860:4860::8888"})
+    assert resp.status_code == 400
+    start_pairing.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_androidtv_disconnect(monkeypatch):
+    from main import app
+    from state import app_state
+
+    disconnect = AsyncMock()
+    monkeypatch.setattr(app_state.android_tv, "disconnect", disconnect)
+    monkeypatch.setattr(app_state.android_tv, "build_status", lambda: {"connected": False, "host": None})
+
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test") as ac:
+        resp = await ac.post("/api/v1/androidtv/disconnect")
+    assert resp.status_code == 200
+    assert resp.json()["connected"] is False
+    disconnect.assert_called_once_with(clear_host=True)
+
+
+def test_androidtv_last_host_persistence(tmp_path):
+    from androidtv.remote_client import AndroidTvRemoteClient
+
+    client = AndroidTvRemoteClient(
+        client_name="Test",
+        storage_dir=str(tmp_path),
+        notify=AsyncMock(),
+    )
+    assert client.load_last_host() is None
+
+    client.host = "192.168.1.120"
+    client._save_last_host()
+
+    restored = AndroidTvRemoteClient(
+        client_name="Test",
+        storage_dir=str(tmp_path),
+        notify=AsyncMock(),
+    )
+    assert restored.load_last_host() == "192.168.1.120"
+
+    restored._delete_last_host()
+    assert restored.load_last_host() is None

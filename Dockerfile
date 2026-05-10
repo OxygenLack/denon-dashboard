@@ -16,6 +16,7 @@ WORKDIR /app
 
 # Create non-root user
 RUN useradd -r -s /bin/false appuser
+RUN mkdir -p /data/androidtv && chown -R appuser /data
 
 # Install Python dependencies
 COPY backend/requirements.txt .

@@ -30,6 +30,11 @@ class Settings(BaseSettings):
     # UI theme: gold (default), blue, red, green, olive, violet, purple, pink, orange
     theme: str = "gold"
 
+    # Android TV Remote protocol v2
+    android_tv_host: str = ""
+    android_tv_client_name: str = "Denon Dashboard"
+    android_tv_storage_dir: str = "/data/androidtv"
+
     # CORS allowed origins (comma-separated). Empty = no CORS headers (same-origin only).
     cors_origins: str = ""
 

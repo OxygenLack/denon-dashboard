@@ -11,6 +11,13 @@ export function useDeviceInfo() {
       .catch(() => setLoading(false))
   }, [])
 
+  const refreshDevice = () => {
+    fetch('/api/v1/device')
+      .then(r => r.json())
+      .then(data => setInfo(data))
+      .catch(() => {})
+  }
+
   const refresh = () => {
     fetch('/api/v1/refresh', { method: 'POST' })
       .then(() => fetch('/api/v1/device'))
@@ -19,5 +26,5 @@ export function useDeviceInfo() {
       .catch(() => {})
   }
 
-  return { info, loading, refresh }
+  return { info, loading, refresh, refreshDevice }
 }

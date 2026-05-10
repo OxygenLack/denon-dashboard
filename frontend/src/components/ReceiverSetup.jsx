@@ -1,9 +1,9 @@
 import { useState } from 'react'
 import ThemePicker from './ThemePicker'
 
-const README_URL = 'https://github.com/OxygenLack/denon-dashboard#quick-start-docker'
+const README_URL = 'https://github.com/mondychan/Denon-Marantz-AVR-Dashboard#quick-start-docker'
 
-export default function ReceiverSetup({ reason, onConnect, currentTheme, onThemeChange }) {
+export default function ReceiverSetup({ reason, onConnect, currentTheme, onThemeChange, embedded = false }) {
   const [scanning, setScanning] = useState(false)
   const [devices, setDevices] = useState(null)
   const [manualIp, setManualIp] = useState('')
@@ -38,7 +38,7 @@ export default function ReceiverSetup({ reason, onConnect, currentTheme, onTheme
         body: JSON.stringify({ command: ip }),
       })
       if (!res.ok) throw new Error(`HTTP ${res.status}`)
-      onConnect(ip)
+      onConnect?.(ip)
     } catch (e) {
       setError(`Could not connect to ${ip}. Make sure the receiver is on and reachable.`)
     } finally {
@@ -47,10 +47,12 @@ export default function ReceiverSetup({ reason, onConnect, currentTheme, onTheme
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-denon-dark p-6 relative">
+    <div className={`${embedded ? 'flex items-start justify-center py-2' : 'min-h-screen flex items-center justify-center bg-denon-dark p-6'} relative`}>
+      {!embedded && (
       <div className="absolute top-4 right-4">
         <ThemePicker currentTheme={currentTheme} onThemeChange={onThemeChange} />
       </div>
+      )}
       <div className="w-full max-w-md space-y-5">
 
         {/* Header */}

@@ -18,7 +18,7 @@ from starlette.responses import Response
 from config import settings
 from denon.const import COMMAND_PATTERN
 from denon.discovery import discover_receivers
-from routes import power, volume, audio, zone2, media, status
+from routes import power, volume, audio, zone2, media, status, androidtv
 from state import app_state
 
 # ---- Logging ----
@@ -86,6 +86,11 @@ async def lifespan(app: FastAPI):
     else:
         bg_task = asyncio.create_task(_auto_discover_and_connect())
 
+    android_tv_host = settings.android_tv_host or app_state.android_tv.load_last_host()
+    if android_tv_host:
+        _LOGGER.info("Connecting to Android TV host %s...", android_tv_host)
+        await app_state.android_tv.connect(android_tv_host)
+
     yield
 
     # Graceful shutdown: cancel background tasks
@@ -99,6 +104,7 @@ async def lifespan(app: FastAPI):
         await app_state.heos.disconnect()
     if app_state.telnet:
         await app_state.telnet.disconnect()
+    await app_state.android_tv.disconnect()
 
 
 # ---- App ----
@@ -149,6 +155,7 @@ app.include_router(audio.router)
 app.include_router(zone2.router)
 app.include_router(media.router)
 app.include_router(status.router)
+app.include_router(androidtv.router)
 
 
 # ---- WebSocket ----
@@ -173,8 +180,7 @@ async def websocket_endpoint(ws: WebSocket):
     _LOGGER.info("WebSocket client connected (%d total)", len(app_state.ws_clients))
     try:
         # Send current state immediately
-        if app_state.telnet:
-            await ws.send_text(json.dumps(app_state.build_status()))
+        await ws.send_text(json.dumps(app_state.build_status()))
 
         # Per-client rate limiting state
         msg_times: list[float] = []
