@@ -1,6 +1,4 @@
 import { useState } from 'react'
-import ThemePicker from './ThemePicker'
-import type { ThemeName } from '../types'
 
 interface DiscoveredDevice {
   ip: string
@@ -12,13 +10,12 @@ interface DiscoveredDevice {
 interface Props {
   reason?: string
   onConnect: (ip: string) => void
-  currentTheme: ThemeName
-  onThemeChange: (theme: ThemeName) => void
+  onOpenThemeModal: () => void
 }
 
 const README_URL = 'https://github.com/OxygenLack/denon-dashboard#quick-start-docker'
 
-export default function ReceiverSetup({ reason, onConnect, currentTheme, onThemeChange }: Props) {
+export default function ReceiverSetup({ reason, onConnect, onOpenThemeModal }: Props) {
   const [scanning, setScanning] = useState(false)
   const [devices, setDevices] = useState<DiscoveredDevice[] | null>(null)
   const [manualIp, setManualIp] = useState('')
@@ -61,7 +58,17 @@ export default function ReceiverSetup({ reason, onConnect, currentTheme, onTheme
   return (
     <div className="min-h-screen flex items-center justify-center bg-denon-dark p-6 relative">
       <div className="absolute top-4 right-4">
-        <ThemePicker currentTheme={currentTheme} onThemeChange={onThemeChange} />
+        <button
+          onClick={onOpenThemeModal}
+          className="w-8 h-8 flex items-center justify-center rounded-lg text-denon-muted hover:text-denon-text hover:bg-denon-surface/70 transition-all"
+          title="Theme settings"
+          aria-label="Theme settings"
+        >
+          <svg className="w-4.5 h-4.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+            <circle cx="12" cy="12" r="3" />
+            <path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42" />
+          </svg>
+        </button>
       </div>
       <div className="w-full max-w-md space-y-5">
         <div className="text-center">

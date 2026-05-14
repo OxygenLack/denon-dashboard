@@ -25,6 +25,11 @@ export interface SurroundModeEntry {
   active?: boolean
 }
 
+export interface ThemeConfig {
+  base: ThemeName
+  overrides: Record<string, string>
+}
+
 export interface ReceiverState {
   surround_mode_list?: SurroundModeEntry[]
   connected: boolean
@@ -57,6 +62,7 @@ export interface ReceiverState {
   source_name?: string
   z2_source_name?: string
   heos_source?: string
+  theme_config?: ThemeConfig
 }
 
 export interface SourceEntry {

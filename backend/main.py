@@ -65,6 +65,10 @@ async def _auto_discover_and_connect() -> None:
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    from preferences import load_preferences
+    prefs = load_preferences()
+    app_state.theme_config = prefs.get("theme", {"base": "gold", "overrides": {}})
+
     # Build source name cache from env config
     app_state.source_name_cache = settings.source_name_map.copy()
     _LOGGER.info(

@@ -1,5 +1,5 @@
 import { useState, useEffect, memo } from 'react'
-import { getTheme, applyTheme } from './theme'
+import { applyThemeConfig } from './theme'
 import { useWebSocket } from './hooks/useWebSocket'
 import ReceiverSetup from './components/ReceiverSetup'
 import { useDeviceInfo } from './hooks/useDeviceInfo'
@@ -15,7 +15,8 @@ import ToneControls from './components/ToneControls'
 import SubwooferLevel from './components/SubwooferLevel'
 import AudioSettings from './components/AudioSettings'
 import Zone2Controls from './components/Zone2Controls'
-import type { ThemeName, SourceEntry } from './types'
+import ThemeModal from './components/ThemeModal'
+import type { SourceEntry } from './types'
 
 interface NavTabProps {
   icon: React.ReactNode
@@ -61,18 +62,16 @@ type ZoneTab = 'main' | 'zone2'
 type Section = 'controls' | 'speakers' | 'audio'
 
 export default function App() {
-  const { state, wsConnected, sendCommand } = useWebSocket()
+  const { state, wsConnected, sendCommand, patchState } = useWebSocket()
   const { info } = useDeviceInfo()
   const { post } = useApi()
   const [zone, setZone] = useState<ZoneTab>('main')
   const [activeSection, setActiveSection] = useState<Section>('controls')
-  const [currentTheme, setCurrentTheme] = useState<ThemeName>('gold')
+  const [themeModalOpen, setThemeModalOpen] = useState(false)
 
   useEffect(() => {
-    const t = getTheme(info?.theme)
-    applyTheme(t)
-    setCurrentTheme(t)
-  }, [info?.theme])
+    if (state?.theme_config) applyThemeConfig(state.theme_config)
+  }, [state?.theme_config])
 
   if (!state) {
     return (
@@ -111,12 +110,20 @@ export default function App() {
   if (!state.connected) {
     const reason = info?.receiver_ip === '0.0.0.0' ? 'no_host' : 'connect_failed'
     return (
-      <ReceiverSetup
-        reason={reason}
-        onConnect={() => { /* connection state arrives via WebSocket push */ }}
-        currentTheme={currentTheme}
-        onThemeChange={setCurrentTheme}
-      />
+      <>
+        <ReceiverSetup
+          reason={reason}
+          onConnect={() => { /* connection state arrives via WebSocket push */ }}
+          onOpenThemeModal={() => setThemeModalOpen(true)}
+        />
+        {themeModalOpen && (
+          <ThemeModal
+            currentConfig={state?.theme_config ?? { base: 'gold', overrides: {} }}
+            onClose={() => setThemeModalOpen(false)}
+            onSaved={cfg => patchState({ theme_config: cfg })}
+          />
+        )}
+      </>
     )
   }
 
@@ -145,8 +152,7 @@ export default function App() {
         state={state}
         wsConnected={wsConnected}
         receiverIp={info?.receiver_ip}
-        currentTheme={currentTheme}
-        onThemeChange={setCurrentTheme}
+        onOpenThemeModal={() => setThemeModalOpen(true)}
       />
 
       {/* Zone selector — hidden on mobile (bottom nav takes over) */}
@@ -315,6 +321,13 @@ export default function App() {
           }
         />
       </nav>
+
+      {themeModalOpen && (
+        <ThemeModal
+          currentConfig={state?.theme_config ?? { base: 'gold', overrides: {} }}
+          onClose={() => setThemeModalOpen(false)}
+        />
+      )}
     </div>
   )
 }

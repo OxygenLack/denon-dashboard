@@ -8,6 +8,7 @@ export function useWebSocket(): {
   state: ReceiverState | null
   wsConnected: boolean
   sendCommand: SendCommandFn
+  patchState: (patch: Partial<ReceiverState>) => void
 } {
   const [state, setState] = useState<ReceiverState | null>(DEMO_MODE ? DEMO_STATE : null)
   const [wsConnected, setWsConnected] = useState(DEMO_MODE)
@@ -67,5 +68,10 @@ export function useWebSocket(): {
     }
   }, [])
 
-  return { state, wsConnected, sendCommand }
+  const patchState = useCallback((patch: Partial<ReceiverState>) => {
+    if (!DEMO_MODE) return
+    setState(prev => prev ? { ...prev, ...patch } : prev)
+  }, [])
+
+  return { state, wsConnected, sendCommand, patchState }
 }

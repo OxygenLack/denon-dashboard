@@ -1,4 +1,4 @@
-import type { Theme, ThemeName } from './types'
+import type { Theme, ThemeConfig, ThemeName } from './types'
 
 export const THEMES: Record<ThemeName, Theme> = {
   gold:   { label: 'Gold',   accent: '#C5A55A', accentDim: '#a08840' },
@@ -12,26 +12,36 @@ export const THEMES: Record<ThemeName, Theme> = {
   orange: { label: 'Orange', accent: '#F97316', accentDim: '#c2410c' },
 }
 
-const STORAGE_KEY = 'denon-dashboard-theme'
-
-export function getTheme(serverDefault?: string): ThemeName {
-  const stored = localStorage.getItem(STORAGE_KEY) as ThemeName | null
-  if (stored && THEMES[stored]) return stored
-  if (serverDefault && THEMES[serverDefault as ThemeName]) return serverDefault as ThemeName
-  return 'gold'
+const STRUCTURAL_DEFAULTS: Record<string, string> = {
+  '--bg':      '#0D0D0D',
+  '--card':    '#1A1A1A',
+  '--surface': '#242424',
+  '--border':  '#333333',
+  '--text':    '#E5E5E5',
+  '--muted':   '#888888',
 }
 
-export function applyTheme(name: ThemeName): ThemeName {
-  const key: ThemeName = THEMES[name] ? name : 'gold'
-  const t = THEMES[key]
+export function applyThemeConfig(config: ThemeConfig): void {
+  const t = THEMES[config.base] ?? THEMES.gold
   const root = document.documentElement
   root.style.setProperty('--accent', t.accent)
   root.style.setProperty('--accent-dim', t.accentDim)
-  return key
+  for (const [k, v] of Object.entries(STRUCTURAL_DEFAULTS)) {
+    root.style.setProperty(k, v)
+  }
+  for (const [k, v] of Object.entries(config.overrides)) {
+    root.style.setProperty(k, v)
+  }
 }
 
-export function setTheme(name: ThemeName): ThemeName {
-  const applied = applyTheme(name)
-  localStorage.setItem(STORAGE_KEY, applied)
-  return applied
+export async function saveThemeToServer(config: ThemeConfig): Promise<void> {
+  const res = await fetch('/api/v1/preferences/theme', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(config),
+  })
+  if (!res.ok) {
+    const text = await res.text().catch(() => 'Unknown error')
+    throw new Error(text)
+  }
 }

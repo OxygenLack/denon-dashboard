@@ -48,6 +48,7 @@ export const DEMO_STATE: ReceiverState = {
   z2_source: 'TV',
   now_playing: { artist: 'Demo Artist', song: 'Demo Track', station: undefined },
   play_state: 'play',
+  theme_config: { base: 'gold', overrides: {} },
   surround_mode_list: [
     { category: 'MOV', id: 1, active: true,  display_name: 'Dolby Digital',   command: 'DOLBY DIGITAL' },
     { category: 'MOV', id: 2, active: false, display_name: 'Dolby Atmos',     command: 'DOLBY ATMOS' },
