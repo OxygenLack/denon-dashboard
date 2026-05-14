@@ -1,21 +1,27 @@
 import { useState, useRef, useCallback, useEffect } from 'react'
+import type { ReceiverState, PostFn } from '../types'
 
-export default function SubwooferLevel({ state, post }) {
-  const [level, setLevel] = useState(state?.subwoofer_level ?? 50)
-  const debounceRef = useRef(null)
+interface Props {
+  state: ReceiverState
+  post: PostFn
+}
+
+export default function SubwooferLevel({ state, post }: Props) {
+  const [level, setLevel] = useState(state.subwoofer_level ?? 50)
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   useEffect(() => {
-    if (state?.subwoofer_level != null) setLevel(state.subwoofer_level)
-  }, [state?.subwoofer_level])
+    if (state.subwoofer_level != null) setLevel(state.subwoofer_level)
+  }, [state.subwoofer_level])
 
-  const dB = (val) => {
+  const dB = (val: number | null) => {
     if (val == null) return '—'
     const d = val - 50
     if (d > 0) return `+${d}`
     return `${d}`
   }
 
-  const handleChange = useCallback((e) => {
+  const handleChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const v = parseInt(e.target.value)
     setLevel(v)
     if (debounceRef.current) clearTimeout(debounceRef.current)

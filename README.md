@@ -43,6 +43,10 @@ A modern, real-time web dashboard for controlling Denon/Marantz AVR receivers. B
 - Expandable health panel — receiver IP, telnet/WS connection status, power state, surround mode, eco mode
 - Audyssey speaker calibration offsets displayed per channel
 
+### Mobile
+- Responsive layout with a bottom navigation bar for easy thumb access on phones
+- Installable as a home screen app (PWA) on iOS and Android
+
 ## Architecture
 
 ```

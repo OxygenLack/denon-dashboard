@@ -1,31 +1,37 @@
 import { useState, useRef, useCallback, useEffect } from 'react'
+import type { ReceiverState, PostFn } from '../types'
 
-export default function ToneControls({ state, post }) {
-  const toneOn = state?.tone_control
-  const [bass, setBass] = useState(state?.bass ?? 50)
-  const [treble, setTreble] = useState(state?.treble ?? 50)
-  const bassRef = useRef(null)
-  const trebleRef = useRef(null)
+interface Props {
+  state: ReceiverState
+  post: PostFn
+}
+
+export default function ToneControls({ state, post }: Props) {
+  const toneOn = state.tone_control
+  const [bass, setBass] = useState(state.bass ?? 50)
+  const [treble, setTreble] = useState(state.treble ?? 50)
+  const bassRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const trebleRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   useEffect(() => {
-    if (state?.bass != null) setBass(state.bass)
-    if (state?.treble != null) setTreble(state.treble)
-  }, [state?.bass, state?.treble])
+    if (state.bass != null) setBass(state.bass)
+    if (state.treble != null) setTreble(state.treble)
+  }, [state.bass, state.treble])
 
-  const dB = (val) => {
+  const dB = (val: number) => {
     const d = val - 50
     if (d > 0) return `+${d}`
     return `${d}`
   }
 
-  const handleBass = useCallback((e) => {
+  const handleBass = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const v = parseInt(e.target.value)
     setBass(v)
     if (bassRef.current) clearTimeout(bassRef.current)
     bassRef.current = setTimeout(() => post('/tone', { bass: v }), 200)
   }, [post])
 
-  const handleTreble = useCallback((e) => {
+  const handleTreble = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const v = parseInt(e.target.value)
     setTreble(v)
     if (trebleRef.current) clearTimeout(trebleRef.current)

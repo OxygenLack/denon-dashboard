@@ -1,9 +1,6 @@
-/**
- * Static metadata for Denon/Marantz AVR sound modes.
- * Keyed by display_name (as returned by OPSMLALL or shown in the UI).
- */
+import type { SoundModeEntry } from '../types'
 
-const MODES = {
+const MODES: Record<string, SoundModeEntry> = {
   // ── Direct / Pure ──────────────────────────────────────────────
   'Direct': {
     speakers: 'Front L/R (+ Sub only with multichannel LFE)',
@@ -140,7 +137,7 @@ const MODES = {
     notes: 'Virtualizer, NOT an upmixer. Disables Audyssey. Cannot be used with Dolby content or when height speakers are connected.',
   },
 
-  // ── Auro-3D (higher-end models) ───────────────────────────────
+  // ── Auro-3D ───────────────────────────────────────────────────
   'Auro-3D': {
     speakers: 'Front L/R, Center, Surround L/R, Front Height L/R, Surr. Height L/R, Top, Sub',
     description: 'Decodes native Auro-3D 3-layer audio (ear/height/top). Automatically applies Auro-Matic upmixer to non-Auro content.',
@@ -201,17 +198,12 @@ const MODES = {
   },
 }
 
-/**
- * Look up mode info by display_name.
- * Handles exact match, uppercase fallback (FALLBACK_MODES), and common aliases.
- */
-const UPPER_MAP = {}
+const UPPER_MAP: Record<string, SoundModeEntry> = {}
 for (const [key, val] of Object.entries(MODES)) {
   UPPER_MAP[key.toUpperCase()] = val
 }
 
-// Extra aliases for FALLBACK_MODES that don't match exactly
-const ALIASES = {
+const ALIASES: Record<string, SoundModeEntry> = {
   'MCH STEREO': MODES['Multi Ch Stereo'],
   'PURE DIRECT': MODES['Pure Direct'],
   'DTS SURROUND': MODES['DTS Surround'],
@@ -220,12 +212,12 @@ const ALIASES = {
   'DOLBY ATMOS': MODES['Dolby Atmos'],
 }
 
-export function getModeInfo(displayName) {
+export function getModeInfo(displayName: string): SoundModeEntry | null {
   if (!displayName) return null
   return MODES[displayName]
-    || UPPER_MAP[displayName.toUpperCase()]
-    || ALIASES[displayName.toUpperCase()]
-    || null
+    ?? UPPER_MAP[displayName.toUpperCase()]
+    ?? ALIASES[displayName.toUpperCase()]
+    ?? null
 }
 
 export default MODES

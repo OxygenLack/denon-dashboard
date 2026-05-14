@@ -1,5 +1,7 @@
 import { useState } from 'react'
+import { motion } from 'framer-motion'
 import RadioBrowser from './RadioBrowser'
+import type { ReceiverState, SendCommandFn, Zone, SourceEntry } from '../types'
 
 const RadioTowerIcon = () => (
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"
@@ -26,8 +28,7 @@ const SpotifyIcon = () => (
   </svg>
 )
 
-// Generic GPU icon (graphics card shape) — used for Nvidia and AMD sources
-const GpuIcon = ({ color = 'currentColor' }) => (
+const GpuIcon = ({ color = 'currentColor' }: { color?: string }) => (
   <svg viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="1.5"
        strokeLinecap="round" strokeLinejoin="round" className="inline w-4 h-4 align-text-bottom">
     <rect x="2" y="6" width="20" height="12" rx="2" />
@@ -36,7 +37,6 @@ const GpuIcon = ({ color = 'currentColor' }) => (
   </svg>
 )
 
-// Generic gamepad icon — no trademarked shapes
 const GamepadIcon = () => (
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"
        strokeLinecap="round" strokeLinejoin="round" className="inline w-4 h-4 align-text-bottom">
@@ -47,7 +47,6 @@ const GamepadIcon = () => (
   </svg>
 )
 
-// Flame icon — for Fire TV / Amazon devices
 const FlameIcon = () => (
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"
        strokeLinecap="round" strokeLinejoin="round" className="inline w-4 h-4 align-text-bottom">
@@ -55,7 +54,6 @@ const FlameIcon = () => (
   </svg>
 )
 
-// Airplay icon — for Apple devices
 const AirplayIcon = () => (
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"
        strokeLinecap="round" strokeLinejoin="round" className="inline w-4 h-4 align-text-bottom">
@@ -64,8 +62,9 @@ const AirplayIcon = () => (
   </svg>
 )
 
-// Default icon map by source code
-const SOURCE_ICONS = {
+type IconNode = React.ReactNode | string
+
+const SOURCE_ICONS: Record<string, IconNode> = {
   GAME: <GamepadIcon />, BD: '📀', TV: '📺', 'SAT/CBL': '📡', MPLAY: '▶️',
   NET: '🌐', BT: <BluetoothIcon />, AUX1: '🖥️', AUX2: '🔌', CD: '💿',
   TUNER: '📻', PHONO: '🎵', DVD: '📀', USB: '💾', 'USB/IPOD': '💾',
@@ -73,50 +72,55 @@ const SOURCE_ICONS = {
   IRADIO: '📻', SERVER: '🖥️', FAVORITES: '⭐',
 }
 
-// Name-based icon overrides — matches display name keywords (case-insensitive)
-const NAME_ICON_RULES = [
-  { match: /geforce|rtx|gtx|nvidia/i,            icon: <GpuIcon color="#76b900" /> },
-  { match: /radeon|amd/i,                         icon: <GpuIcon color="#ed1c24" /> },
-  { match: /nintendo|switch/i,                    icon: <GamepadIcon /> },
-  { match: /playstation|ps[345]/i,                icon: <GamepadIcon /> },
-  { match: /xbox/i,                               icon: <GamepadIcon /> },
-  { match: /fire\s?tv|amazon|firestick/i,         icon: <FlameIcon /> },
-  { match: /apple\s?tv|airplay|homepod/i,         icon: <AirplayIcon /> },
-  { match: /chromecast|google/i,                  icon: '📡' },
-  { match: /roku/i,                               icon: '📺' },
+const NAME_ICON_RULES: { match: RegExp; icon: IconNode }[] = [
+  { match: /geforce|rtx|gtx|nvidia/i, icon: <GpuIcon color="#76b900" /> },
+  { match: /radeon|amd/i,             icon: <GpuIcon color="#ed1c24" /> },
+  { match: /nintendo|switch/i,        icon: <GamepadIcon /> },
+  { match: /playstation|ps[345]/i,    icon: <GamepadIcon /> },
+  { match: /xbox/i,                   icon: <GamepadIcon /> },
+  { match: /fire\s?tv|amazon|firestick/i, icon: <FlameIcon /> },
+  { match: /apple\s?tv|airplay|homepod/i, icon: <AirplayIcon /> },
+  { match: /chromecast|google/i,      icon: '📡' },
+  { match: /roku/i,                   icon: '📺' },
 ]
 
-/** Resolve icon: check display name first, fall back to source code map. */
-function getIcon(code, name) {
+function getIcon(code: string, name?: string): IconNode {
   if (name) {
     for (const rule of NAME_ICON_RULES) {
       if (rule.match.test(name)) return rule.icon
     }
   }
-  return SOURCE_ICONS[code] || '🔊'
+  return SOURCE_ICONS[code] ?? '🔊'
 }
 
-const DEFAULT_SOURCES = {
+const DEFAULT_SOURCES: Record<string, string> = {
   PHONO: 'Phono', CD: 'CD', TUNER: 'Tuner', DVD: 'DVD', BD: 'Blu-ray',
   TV: 'TV Audio', 'SAT/CBL': 'SAT/Cable', MPLAY: 'Media Player',
   GAME: 'Game', NET: 'Online Music', BT: 'Bluetooth',
   AUX1: 'AUX1', AUX2: 'AUX2',
 }
 
-export default function SourceSelector({ state, sendCommand, sources, sourceNameMap, zone = 'main' }) {
-  const current = zone === 'main' ? state?.source : state?.z2_source
+interface Props {
+  state: ReceiverState
+  sendCommand: SendCommandFn
+  sources: SourceEntry[]
+  sourceNameMap: Record<string, string>
+  zone?: Zone
+}
+
+export default function SourceSelector({ state, sendCommand, sources, sourceNameMap, zone = 'main' }: Props) {
+  const current = zone === 'main' ? state.source : state.z2_source
   const prefix = zone === 'main' ? 'SI' : 'Z2'
   const [radioBrowserOpen, setRadioBrowserOpen] = useState(false)
 
-  const sourceList = sources.length > 0
+  const sourceList: SourceEntry[] = sources.length > 0
     ? sources
     : Object.entries(DEFAULT_SOURCES).map(([id, name]) => ({ id, name }))
 
-  const getName = (code) => sourceNameMap?.[code] || DEFAULT_SOURCES[code] || code
+  const getName = (code: string) => sourceNameMap[code] ?? DEFAULT_SOURCES[code] ?? code
 
-  // Backend resolves the actual HEOS service (Spotify, TuneIn, etc.) when source=NET
-  const currentDisplayName = (zone === 'main' ? state?.source_name : state?.z2_source_name) || getName(current)
-  const heosServiceCode = zone === 'main' ? state?.heos_source : null
+  const currentDisplayName = (zone === 'main' ? state.source_name : state.z2_source_name) ?? getName(current ?? '')
+  const heosServiceCode = zone === 'main' ? state.heos_source : null
 
   return (
     <div className="card">
@@ -131,38 +135,37 @@ export default function SourceSelector({ state, sendCommand, sources, sourceName
       </div>
       <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
         {sourceList.map(s => {
-          const active = heosServiceCode
-            ? s.id === heosServiceCode  // Highlight the specific HEOS service button
-            : current === s.id
+          const active = heosServiceCode ? s.id === heosServiceCode : current === s.id
           return (
-            <button
+            <motion.button
               key={s.id}
               onClick={() => sendCommand(`${prefix}${s.id}`)}
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.97 }}
               className={`group relative py-3 px-3 rounded-xl text-sm font-medium transition-all duration-150 text-left overflow-hidden ${
                 active
                   ? 'bg-gradient-to-br from-denon-gold/20 to-amber-500/10 text-denon-gold ring-1 ring-denon-gold/40'
-                  : 'bg-denon-surface/70 text-denon-text hover:bg-denon-surface hover:scale-[1.02] active:scale-[0.98]'
+                  : 'bg-denon-surface/70 text-denon-text hover:bg-denon-surface'
               }`}
             >
               <span className="text-base mr-1.5">{getIcon(s.id, s.name)}</span>
               <span className="text-xs">{s.name}</span>
-              {active && (
-                <span className="absolute top-1.5 right-1.5 w-1.5 h-1.5 rounded-full bg-denon-gold" />
-              )}
+              {active && <span className="absolute top-1.5 right-1.5 w-1.5 h-1.5 rounded-full bg-denon-gold" />}
               {s.id === 'IRADIO' && (
-                <span
+                <motion.span
                   onClick={(e) => { e.stopPropagation(); setRadioBrowserOpen(true) }}
+                  whileHover={{ scale: 1.15 }}
+                  whileTap={{ scale: 0.88 }}
                   className="absolute bottom-1.5 right-1.5 p-1 rounded-lg bg-denon-surface/80 hover:bg-denon-gold/20 hover:text-denon-gold text-denon-muted transition-all cursor-pointer"
                   title="Browse stations"
                 >
                   <RadioTowerIcon />
-                </span>
+                </motion.span>
               )}
-            </button>
+            </motion.button>
           )
         })}
       </div>
-
       <RadioBrowser open={radioBrowserOpen} onClose={() => setRadioBrowserOpen(false)} />
     </div>
   )

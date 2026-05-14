@@ -40,6 +40,10 @@ services:
       #- DENON_DASHBOARD_DENON_ZONE2_NAME=Zone 2
       #- DENON_DASHBOARD_DENON_SOURCE_NAMES={"GAME":"Game Console","TV":"TV Audio","NET":"Streaming","BD":"Blu-ray","BT":"Bluetooth"}
       #- DENON_DASHBOARD_LOG_LEVEL=INFO
+      #- DENON_DASHBOARD_DATA_DIR=/data
+
+    volumes:
+      - denon_data:/data
 
     # ── Traefik labels (optional) ─────────────────────────────────────────────
     # See compose.override.yaml for a working example with Traefik.
@@ -56,3 +60,6 @@ services:
 #networks:
 #  traefik_proxy:
 #    external: true
+
+volumes:
+  denon_data:

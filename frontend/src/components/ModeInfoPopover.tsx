@@ -1,7 +1,14 @@
 import { useState, useLayoutEffect } from 'react'
 import { createPortal } from 'react-dom'
+import type { SoundModeEntry } from '../types'
 
-const FIELDS = [
+interface Props {
+  modeName: string
+  modeInfo: SoundModeEntry | null
+  anchorEl: HTMLElement | null | undefined
+}
+
+const FIELDS: { key: keyof SoundModeEntry; label: string }[] = [
   { key: 'speakers',    label: 'Speakers' },
   { key: 'description', label: 'Description' },
   { key: 'bestFor',     label: 'Best For' },
@@ -11,8 +18,14 @@ const FIELDS = [
 const POPOVER_WIDTH = 300
 const GAP = 8
 
-export default function ModeInfoPopover({ modeName, modeInfo, anchorEl }) {
-  const [pos, setPos] = useState(null)
+interface PopoverPos {
+  left: number
+  top: number
+  above: boolean
+}
+
+export default function ModeInfoPopover({ modeName, modeInfo, anchorEl }: Props) {
+  const [pos, setPos] = useState<PopoverPos | null>(null)
 
   useLayoutEffect(() => {
     if (!anchorEl) return
@@ -22,16 +35,12 @@ export default function ModeInfoPopover({ modeName, modeInfo, anchorEl }) {
       rect.left + rect.width / 2 - POPOVER_WIDTH / 2,
       window.innerWidth - POPOVER_WIDTH - GAP,
     ))
-    setPos({
-      left,
-      top: above ? rect.top - GAP : rect.bottom + GAP,
-      above,
-    })
+    setPos({ left, top: above ? rect.top - GAP : rect.bottom + GAP, above })
   }, [anchorEl])
 
   if (!modeInfo || !pos) return null
 
-  const style = {
+  const style: React.CSSProperties = {
     position: 'fixed',
     left: pos.left,
     width: POPOVER_WIDTH,

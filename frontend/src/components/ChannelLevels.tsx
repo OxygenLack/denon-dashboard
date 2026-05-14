@@ -1,17 +1,27 @@
 import { useState, useRef, useCallback } from 'react'
+import type { PostFn } from '../types'
 
-export default function ChannelLevels({ channels, channelNames, sendCommand, post, calibration }) {
-  const [localLevels, setLocalLevels] = useState({})
-  const debounceRefs = useRef({})
+interface Props {
+  channels: Record<string, number>
+  channelNames: Record<string, string>
+  sendCommand: (command: string) => void
+  post: PostFn
+  calibration?: Record<string, number>
+}
 
-  const order = ['FL', 'FR', 'C', 'SW', 'SW2', 'SL', 'SR', 'SBL', 'SBR', 'SB',
-    'FHL', 'FHR', 'FWL', 'FWR', 'TFL', 'TFR', 'TML', 'TMR', 'TRL', 'TRR']
+const CHANNEL_ORDER = ['FL', 'FR', 'C', 'SW', 'SW2', 'SL', 'SR', 'SBL', 'SBR', 'SB',
+  'FHL', 'FHR', 'FWL', 'FWR', 'TFL', 'TFR', 'TML', 'TMR', 'TRL', 'TRR']
+
+export default function ChannelLevels({ channels, channelNames, post, calibration }: Props) {
+  const [localLevels, setLocalLevels] = useState<Record<string, number>>({})
+  const debounceRefs = useRef<Record<string, ReturnType<typeof setTimeout>>>({})
 
   const entries = Object.entries(channels).sort((a, b) =>
-    (order.indexOf(a[0]) ?? 99) - (order.indexOf(b[0]) ?? 99)
+    (CHANNEL_ORDER.indexOf(a[0]) === -1 ? 99 : CHANNEL_ORDER.indexOf(a[0])) -
+    (CHANNEL_ORDER.indexOf(b[0]) === -1 ? 99 : CHANNEL_ORDER.indexOf(b[0]))
   )
 
-  const handleChange = useCallback((ch, val) => {
+  const handleChange = useCallback((ch: string, val: string) => {
     const v = parseInt(val)
     setLocalLevels(prev => ({ ...prev, [ch]: v }))
 
@@ -26,10 +36,8 @@ export default function ChannelLevels({ channels, channelNames, sendCommand, pos
     }, 200)
   }, [post])
 
-  // Effective dB = calibration offset + trim adjustment
-  // Calibration: from Audyssey (e.g. FR = -4.5 dB)
-  // Trim: CV value where 50 = 0 dB (range 38..62 = -12..+12 dB)
-  const effectiveDb = (ch, cvVal) => {
+  // Effective dB = Audyssey calibration offset + trim adjustment (50 = 0 dB)
+  const effectiveDb = (ch: string, cvVal: number) => {
     const trim = cvVal - 50
     const cal = calibration?.[ch] ?? 0
     const total = cal + trim
@@ -37,7 +45,7 @@ export default function ChannelLevels({ channels, channelNames, sendCommand, pos
     return total.toFixed(1)
   }
 
-  const trimOnly = (cvVal) => {
+  const trimOnly = (cvVal: number) => {
     const t = cvVal - 50
     if (t === 0) return '±0'
     if (t > 0) return `+${t}`
@@ -67,7 +75,7 @@ export default function ChannelLevels({ channels, channelNames, sendCommand, pos
       <div className="space-y-3">
         {entries.map(([ch, serverVal]) => {
           const val = localLevels[ch] ?? serverVal
-          const name = channelNames[ch] || ch
+          const name = channelNames[ch] ?? ch
           const hasCal = calibration?.[ch] != null && calibration[ch] !== 0
           return (
             <div key={ch}>
@@ -95,7 +103,7 @@ export default function ChannelLevels({ channels, channelNames, sendCommand, pos
           )
         })}
       </div>
-      {Object.keys(calibration || {}).length > 0 && (
+      {Object.keys(calibration ?? {}).length > 0 && (
         <p className="text-[10px] text-denon-muted/40 mt-3">
           Levels include Audyssey calibration offsets. Trim adjusts relative to calibration.
         </p>

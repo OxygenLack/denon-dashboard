@@ -65,6 +65,10 @@ async def _auto_discover_and_connect() -> None:
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    from preferences import load_preferences
+    prefs = load_preferences()
+    app_state.theme_config = prefs.get("theme", {"base": "gold", "overrides": {}})
+
     # Build source name cache from env config
     app_state.source_name_cache = settings.source_name_map.copy()
     _LOGGER.info(
@@ -77,7 +81,10 @@ async def lifespan(app: FastAPI):
     bg_task: asyncio.Task | None = None
 
     host = settings.denon_host
-    if host:
+    if settings.demo_mode:
+        _LOGGER.info("Demo mode enabled — using mock receiver (no real AVR needed)")
+        await app_state.start_demo()
+    elif host:
         _LOGGER.info("Connecting to configured host %s...", host)
         await app_state.connect_to_host(host)
         # Preload radio stations in background

@@ -1,7 +1,15 @@
-export default function PowerControl({ state, sendCommand, zone = 'main' }) {
-  const power = zone === 'main' ? state?.power : state?.z2_power
+import type { ReceiverState, SendCommandFn, Zone } from '../types'
 
-  // Use ZMON/ZMOFF for main zone only (PWON turns on both zones)
+interface Props {
+  state: ReceiverState
+  sendCommand: SendCommandFn
+  zone?: Zone
+}
+
+export default function PowerControl({ state, sendCommand, zone = 'main' }: Props) {
+  const power = zone === 'main' ? state.power : state.z2_power
+
+  // ZMON/ZMOFF for main zone only — PWON turns on both zones
   const onCmd = zone === 'main' ? 'ZMON' : 'Z2ON'
   const offCmd = zone === 'main' ? 'ZMOFF' : 'Z2OFF'
 

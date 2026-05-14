@@ -1,17 +1,24 @@
 import { useState, useMemo, useRef, useCallback } from 'react'
+import { motion, AnimatePresence } from 'framer-motion'
+import { fadeInUp, FAST } from '../variants'
 import { getModeInfo } from '../data/soundModeInfo'
 import ModeInfoPopover from './ModeInfoPopover'
 import ModeInfoPanel from './ModeInfoPanel'
+import type { ReceiverState, SendCommandFn, SurroundModeEntry as ModeEntry } from '../types'
 
-/* Category cycling commands */
-const CATEGORIES = [
+interface Category {
+  label: string
+  command: string
+  code: string
+}
+
+const CATEGORIES: Category[] = [
   { label: 'Movie', command: 'MOVIE', code: 'MOV' },
   { label: 'Music', command: 'MUSIC', code: 'MUS' },
   { label: 'Game',  command: 'GAME',  code: 'GAM' },
   { label: 'Pure',  command: 'DIRECT', code: 'PUR' },
 ]
 
-/* Fallback modes for receivers that don't send OPSMLALL */
 const FALLBACK_MODES = [
   'STEREO', 'DIRECT', 'PURE DIRECT',
   'DOLBY SURROUND', 'DOLBY DIGITAL', 'DOLBY ATMOS',
@@ -20,23 +27,26 @@ const FALLBACK_MODES = [
   'MATRIX', 'VIDEO GAME', 'VIRTUAL',
 ]
 
-export default function SurroundMode({ state, sendCommand }) {
-  const current = state?.surround_mode
-  const modeList = state?.surround_mode_list
-  const hasModeList = modeList && modeList.length > 0
+interface Props {
+  state: ReceiverState
+  sendCommand: SendCommandFn
+}
 
-  const [expandedCat, setExpandedCat] = useState(null)
-  const collapseTimer = useRef(null)
-  const expandedRef = useRef(null) // tracks if category was already expanded
+export default function SurroundMode({ state, sendCommand }: Props) {
+  const current = state.surround_mode
+  const modeList = state.surround_mode_list
+  const hasModeList = modeList != null && modeList.length > 0
 
-  /* Info feature state */
+  const [expandedCat, setExpandedCat] = useState<string | null>(null)
+  const collapseTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const expandedRef = useRef<string | null>(null)
+
   const [infoMode, setInfoMode] = useState(false)
-  const [hoveredMode, setHoveredMode] = useState(null)
-  const [selectedInfoMode, setSelectedInfoMode] = useState(null)
-  const hoverTimerRef = useRef(null)
-  const buttonRefs = useRef({})
+  const [hoveredMode, setHoveredMode] = useState<string | null>(null)
+  const [selectedInfoMode, setSelectedInfoMode] = useState<string | null>(null)
+  const hoverTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const buttonRefs = useRef<Record<string, HTMLButtonElement | null>>({})
 
-  /* Reset the 3-second auto-collapse timer */
   const resetCollapseTimer = useCallback(() => {
     if (collapseTimer.current) clearTimeout(collapseTimer.current)
     collapseTimer.current = setTimeout(() => {
@@ -45,10 +55,9 @@ export default function SurroundMode({ state, sendCommand }) {
     }, 3000)
   }, [])
 
-  /* Modes grouped by category */
   const modesByCategory = useMemo(() => {
-    if (!hasModeList) return {}
-    const grouped = {}
+    if (!hasModeList || !modeList) return {} as Record<string, ModeEntry[]>
+    const grouped: Record<string, ModeEntry[]> = {}
     for (const m of modeList) {
       if (!grouped[m.category]) grouped[m.category] = []
       grouped[m.category].push(m)
@@ -56,10 +65,9 @@ export default function SurroundMode({ state, sendCommand }) {
     return grouped
   }, [modeList, hasModeList])
 
-  /* Deduplicate modes by display_name for the Available list */
   const uniqueModes = useMemo(() => {
-    if (!hasModeList) return []
-    const seen = new Map()
+    if (!hasModeList || !modeList) return []
+    const seen = new Map<string, ModeEntry>()
     for (const m of modeList) {
       const existing = seen.get(m.display_name)
       if (!existing || m.active) {
@@ -69,16 +77,14 @@ export default function SurroundMode({ state, sendCommand }) {
     return [...seen.values()]
   }, [modeList, hasModeList])
 
-  /* Check if a mode is the currently playing one */
-  const isPlaying = (mode) => {
+  const isPlaying = (mode: ModeEntry) => {
     if (!current) return false
     if (mode.command === current) return true
     if (mode.display_name?.toUpperCase() === current) return true
     return false
   }
 
-  /* Click a mode button — send direct command */
-  const onModeClick = (mode) => {
+  const onModeClick = (mode: ModeEntry) => {
     if (mode.command) {
       sendCommand(`MS${mode.command}`)
     } else {
@@ -86,17 +92,13 @@ export default function SurroundMode({ state, sendCommand }) {
     }
   }
 
-  /* Handle cycle button click */
-  const onCycleClick = (cat) => {
+  const onCycleClick = (cat: Category) => {
     resetCollapseTimer()
     setExpandedCat(cat.code)
     expandedRef.current = cat.code
 
-    // Always send the cycle command — the receiver handles
-    // "first press = display only" behavior on its own
     if (cat.code === 'PUR') {
-      // PUR doesn't cycle via telnet — toggle manually
-      const purModes = modesByCategory['PUR'] || []
+      const purModes = modesByCategory['PUR'] ?? []
       const activeIdx = purModes.findIndex(m => isPlaying(m))
       const nextMode = purModes[(activeIdx + 1) % purModes.length]
       if (nextMode?.command) {
@@ -109,71 +111,79 @@ export default function SurroundMode({ state, sendCommand }) {
     }
   }
 
-  /* Get the expanded category's mode list with current/next indicators */
-  const expandedModes = expandedCat ? (modesByCategory[expandedCat] || []) : []
+  const expandedModes = expandedCat ? (modesByCategory[expandedCat] ?? []) : []
   const activeIdx = expandedModes.findIndex(m => isPlaying(m))
   const nextIdx = activeIdx >= 0 ? (activeIdx + 1) % expandedModes.length : -1
 
   return (
     <>
-      {/* Cycle Modes */}
       <div className="card">
         <h2 className="text-sm font-medium text-denon-muted mb-3">Cycle Modes</h2>
         <div className="grid grid-cols-4 gap-2">
           {CATEGORIES.map(cat => (
-            <button
+            <motion.button
               key={cat.command}
               onClick={() => onCycleClick(cat)}
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.97 }}
               className={`py-2.5 px-3 rounded-xl text-xs font-medium transition-all ${
                 expandedCat === cat.code
                   ? 'bg-denon-surface text-denon-gold border border-denon-gold/30'
-                  : 'bg-denon-surface/70 text-denon-text hover:bg-denon-surface hover:scale-[1.02] active:scale-[0.98]'
+                  : 'bg-denon-surface/70 text-denon-text hover:bg-denon-surface'
               }`}
             >
               {cat.label}
-            </button>
+            </motion.button>
           ))}
         </div>
 
-        {/* Expanded cycle order */}
-        {expandedCat && expandedModes.length > 0 && (
-          <div className="mt-3 pt-3 border-t border-denon-border/30">
-            <div className="space-y-1">
-              {expandedModes.map((mode, idx) => {
-                const playing = isPlaying(mode)
-                const isNext = idx === nextIdx
-                return (
-                  <div
-                    key={`${mode.category}${mode.id}`}
-                    className={`flex items-center gap-2 py-1.5 px-2.5 rounded-lg text-xs transition-all ${
-                      playing
-                        ? 'bg-denon-gold/15 text-denon-gold font-medium'
-                        : isNext
-                          ? 'bg-denon-surface/50 text-denon-text'
-                          : 'text-denon-muted'
-                    }`}
-                  >
-                    <span className="w-4 text-center shrink-0">
-                      {playing ? '▸' : isNext ? '→' : ''}
-                    </span>
-                    <span className={playing ? '' : isNext ? 'text-denon-text' : ''}>
-                      {mode.display_name}
-                    </span>
-                  </div>
-                )
-              })}
-            </div>
-          </div>
-        )}
+        <AnimatePresence>
+          {expandedCat != null && expandedModes.length > 0 && (
+            <motion.div
+              key="expanded-modes"
+              variants={fadeInUp}
+              initial="initial"
+              animate="animate"
+              exit="exit"
+              transition={FAST}
+              className="mt-3 pt-3 border-t border-denon-border/30"
+            >
+              <div className="space-y-1">
+                {expandedModes.map((mode, idx) => {
+                  const playing = isPlaying(mode)
+                  const isNext = idx === nextIdx
+                  return (
+                    <div
+                      key={`${mode.category}${mode.id}`}
+                      className={`flex items-center gap-2 py-1.5 px-2.5 rounded-lg text-xs transition-all ${
+                        playing
+                          ? 'bg-denon-gold/15 text-denon-gold font-medium'
+                          : isNext
+                            ? 'bg-denon-surface/50 text-denon-text'
+                            : 'text-denon-muted'
+                      }`}
+                    >
+                      <span className="w-4 text-center shrink-0">
+                        {playing ? '▸' : isNext ? '→' : ''}
+                      </span>
+                      <span>{mode.display_name}</span>
+                    </div>
+                  )
+                })}
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
       </div>
 
-      {/* Available Sound Modes */}
       <div className="card">
         <div className="flex items-center justify-between mb-3">
           <div className="flex items-center gap-2">
             <h2 className="text-sm font-medium text-denon-muted">Available Sound Modes</h2>
-            <button
+            <motion.button
               onClick={() => { setInfoMode(m => !m); setSelectedInfoMode(null) }}
+              whileHover={{ scale: 1.1 }}
+              whileTap={{ scale: 0.9 }}
               className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold transition-all ${
                 infoMode
                   ? 'bg-denon-gold/20 text-denon-gold ring-1 ring-denon-gold/40'
@@ -182,7 +192,7 @@ export default function SurroundMode({ state, sendCommand }) {
               aria-label="Toggle mode info"
             >
               i
-            </button>
+            </motion.button>
           </div>
           {current && (
             <span className="text-xs text-denon-gold font-medium bg-denon-gold/10 px-2 py-0.5 rounded-lg">
@@ -196,7 +206,7 @@ export default function SurroundMode({ state, sendCommand }) {
               const playing = isPlaying(mode)
               const hasInfo = !!getModeInfo(mode.display_name)
               return (
-                <button
+                <motion.button
                   key={mode.display_name}
                   ref={el => { buttonRefs.current[mode.display_name] = el }}
                   onClick={() => {
@@ -212,15 +222,17 @@ export default function SurroundMode({ state, sendCommand }) {
                     }
                   }}
                   onMouseLeave={() => {
-                    clearTimeout(hoverTimerRef.current)
+                    if (hoverTimerRef.current) clearTimeout(hoverTimerRef.current)
                     setHoveredMode(null)
                   }}
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.97 }}
                   className={`group relative py-2.5 px-3 rounded-xl text-xs font-medium transition-all text-left overflow-hidden ${
                     playing
                       ? 'bg-gradient-to-br from-denon-gold/20 to-amber-500/10 text-denon-gold ring-1 ring-denon-gold/40'
                       : infoMode && hasInfo
-                        ? 'bg-denon-surface/70 text-denon-text ring-1 ring-denon-gold/20 hover:ring-denon-gold/40 hover:scale-[1.02] active:scale-[0.98]'
-                        : 'bg-denon-surface/70 text-denon-text hover:bg-denon-surface hover:scale-[1.02] active:scale-[0.98]'
+                        ? 'bg-denon-surface/70 text-denon-text ring-1 ring-denon-gold/20 hover:ring-denon-gold/40'
+                        : 'bg-denon-surface/70 text-denon-text hover:bg-denon-surface'
                   }`}
                 >
                   {mode.display_name}
@@ -230,7 +242,7 @@ export default function SurroundMode({ state, sendCommand }) {
                   {infoMode && hasInfo && (
                     <span className="absolute top-1 right-1.5 text-[8px] text-denon-muted">ⓘ</span>
                   )}
-                </button>
+                </motion.button>
               )
             })
           ) : (
@@ -238,7 +250,7 @@ export default function SurroundMode({ state, sendCommand }) {
               const playing = current === modeName
               const hasInfo = !!getModeInfo(modeName)
               return (
-                <button
+                <motion.button
                   key={modeName}
                   ref={el => { buttonRefs.current[modeName] = el }}
                   onClick={() => {
@@ -254,15 +266,17 @@ export default function SurroundMode({ state, sendCommand }) {
                     }
                   }}
                   onMouseLeave={() => {
-                    clearTimeout(hoverTimerRef.current)
+                    if (hoverTimerRef.current) clearTimeout(hoverTimerRef.current)
                     setHoveredMode(null)
                   }}
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.97 }}
                   className={`group relative py-2.5 px-3 rounded-xl text-xs font-medium transition-all text-left overflow-hidden ${
                     playing
                       ? 'bg-gradient-to-br from-denon-gold/20 to-amber-500/10 text-denon-gold ring-1 ring-denon-gold/40'
                       : infoMode && hasInfo
-                        ? 'bg-denon-surface/70 text-denon-text ring-1 ring-denon-gold/20 hover:ring-denon-gold/40 hover:scale-[1.02] active:scale-[0.98]'
-                        : 'bg-denon-surface/70 text-denon-text hover:bg-denon-surface hover:scale-[1.02] active:scale-[0.98]'
+                        ? 'bg-denon-surface/70 text-denon-text ring-1 ring-denon-gold/20 hover:ring-denon-gold/40'
+                        : 'bg-denon-surface/70 text-denon-text hover:bg-denon-surface'
                   }`}
                 >
                   {modeName}
@@ -272,23 +286,32 @@ export default function SurroundMode({ state, sendCommand }) {
                   {infoMode && hasInfo && (
                     <span className="absolute top-1 right-1.5 text-[8px] text-denon-muted">ⓘ</span>
                   )}
-                </button>
+                </motion.button>
               )
             })
           )}
         </div>
 
-        {/* Mobile info panel (shown when info mode toggle is active) */}
-        {infoMode && selectedInfoMode && (
-          <ModeInfoPanel
-            modeName={selectedInfoMode}
-            modeInfo={getModeInfo(selectedInfoMode)}
-            onClose={() => setSelectedInfoMode(null)}
-          />
-        )}
+        <AnimatePresence>
+          {infoMode && selectedInfoMode && (
+            <motion.div
+              key="info-panel"
+              variants={fadeInUp}
+              initial="initial"
+              animate="animate"
+              exit="exit"
+              transition={FAST}
+            >
+              <ModeInfoPanel
+                modeName={selectedInfoMode}
+                modeInfo={getModeInfo(selectedInfoMode)}
+                onClose={() => setSelectedInfoMode(null)}
+              />
+            </motion.div>
+          )}
+        </AnimatePresence>
 
-        {/* Desktop hover popover */}
-        {hoveredMode && !infoMode && (
+        {hoveredMode != null && !infoMode && (
           <ModeInfoPopover
             modeName={hoveredMode}
             modeInfo={getModeInfo(hoveredMode)}

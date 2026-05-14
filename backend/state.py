@@ -31,6 +31,7 @@ class AppState:
         self.media_state: dict[str, Any] = {"now_playing": None, "play_state": None}
         self._media_poll_task: asyncio.Task | None = None
         self._lock = asyncio.Lock()
+        self.theme_config: dict = {"base": "gold", "overrides": {}}
 
     @property
     def discovered_sources(self) -> dict[str, str]:
@@ -189,6 +190,7 @@ class AppState:
             "now_playing": self.media_state.get("now_playing"),
             "play_state": self.media_state.get("play_state"),
             "stream_quality": self._detect_stream_quality(),
+            "theme_config": self.theme_config,
         }
 
     async def broadcast_state(self) -> None:
@@ -227,6 +229,22 @@ class AppState:
                 return
             except Exception as exc:
                 _LOGGER.debug("Media poll error: %s", exc)
+
+    async def start_demo(self) -> None:
+        """Set up a mock receiver for development without a physical AVR."""
+        from denon.mock_client import MockDenonClient
+
+        async with self._lock:
+            mock = MockDenonClient()
+            self.telnet = mock  # assign before connect so broadcast_state() works
+
+            async def _on_state_change(state: dict[str, Any]) -> None:
+                await self.broadcast_state()
+
+            mock.on_state_change(_on_state_change)
+            await mock.connect()
+
+        await self.broadcast_state()
 
     async def connect_to_host(self, host: str) -> None:
         """Connect telnet + HEOS for a given host IP."""

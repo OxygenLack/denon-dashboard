@@ -14,8 +14,9 @@ RUN npm run build
 FROM python:3.13-slim AS production
 WORKDIR /app
 
-# Create non-root user
-RUN useradd -r -s /bin/false appuser
+# Create non-root user and data directory
+RUN useradd -r -s /bin/false appuser && mkdir -p /data && chown appuser:appuser /data
+VOLUME ["/data"]
 
 # Install Python dependencies
 COPY backend/requirements.txt .

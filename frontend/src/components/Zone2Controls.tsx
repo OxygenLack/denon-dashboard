@@ -2,19 +2,29 @@ import { useState, useRef, useCallback, useEffect } from 'react'
 import PowerControl from './PowerControl'
 import MediaControls from './MediaControls'
 import SourceSelector from './SourceSelector'
+import type { ReceiverState, SendCommandFn, PostFn, SourceEntry } from '../types'
 
-export default function Zone2Controls({ state, sendCommand, post, sources, sourceNameMap, zoneName }) {
-  const volume = state?.z2_volume
-  const muted = state?.z2_muted
+interface Props {
+  state: ReceiverState
+  sendCommand: SendCommandFn
+  post: PostFn
+  sources: SourceEntry[]
+  sourceNameMap: Record<string, string>
+  zoneName: string
+}
+
+export default function Zone2Controls({ state, sendCommand, post, sources, sourceNameMap }: Props) {
+  const volume = state.z2_volume
+  const muted = state.z2_muted
 
   const [localVol, setLocalVol] = useState(volume ?? 0)
-  const debounceRef = useRef(null)
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   useEffect(() => {
     if (volume != null) setLocalVol(volume)
   }, [volume])
 
-  const handleVolChange = useCallback((e) => {
+  const handleVolChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const v = parseInt(e.target.value)
     setLocalVol(v)
     if (debounceRef.current) clearTimeout(debounceRef.current)
@@ -25,7 +35,6 @@ export default function Zone2Controls({ state, sendCommand, post, sources, sourc
     <div className="space-y-4">
       <PowerControl state={state} sendCommand={sendCommand} zone="zone2" />
 
-      {/* Volume */}
       <div className="card">
         <div className="flex items-center justify-between mb-3">
           <div>
@@ -62,17 +71,8 @@ export default function Zone2Controls({ state, sendCommand, post, sources, sourc
         />
       </div>
 
-      {/* Media */}
       <MediaControls state={state} sendCommand={sendCommand} post={post} zone="zone2" />
-
-      {/* Source */}
-      <SourceSelector
-        state={state}
-        sendCommand={sendCommand}
-        sources={sources}
-        sourceNameMap={sourceNameMap}
-        zone="zone2"
-      />
+      <SourceSelector state={state} sendCommand={sendCommand} sources={sources} sourceNameMap={sourceNameMap} zone="zone2" />
     </div>
   )
 }

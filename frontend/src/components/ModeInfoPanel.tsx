@@ -1,14 +1,21 @@
 import { useEffect, useRef } from 'react'
+import type { SoundModeEntry } from '../types'
 
-const FIELDS = [
+interface Props {
+  modeName: string
+  modeInfo: SoundModeEntry | null
+  onClose: () => void
+}
+
+const FIELDS: { key: keyof SoundModeEntry; label: string }[] = [
   { key: 'speakers',    label: 'Speakers' },
   { key: 'description', label: 'Description' },
   { key: 'bestFor',     label: 'Best For' },
   { key: 'notes',       label: 'Notes' },
 ]
 
-export default function ModeInfoPanel({ modeName, modeInfo, onClose }) {
-  const ref = useRef(null)
+export default function ModeInfoPanel({ modeName, modeInfo, onClose }: Props) {
+  const ref = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     ref.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' })

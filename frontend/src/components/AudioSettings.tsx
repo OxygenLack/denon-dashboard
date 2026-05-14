@@ -1,16 +1,22 @@
-export default function AudioSettings({ state, post }) {
-  const dynamicEq = state?.dynamic_eq
-  const dynamicVol = state?.dynamic_volume
-  const multeq = state?.multeq
-  const refLevel = state?.ref_level_offset
-  const sleepTimer = state?.sleep_timer
-  const ecoMode = state?.eco_mode
+import type { ReceiverState, PostFn } from '../types'
 
-  const dynVolModes = ['OFF', 'LIT', 'MED', 'HEV']
-  const dynVolLabels = { OFF: 'Off', LIT: 'Light', MED: 'Medium', HEV: 'Heavy' }
-  const multeqModes = ['AUDYSSEY', 'BYP.LR', 'FLAT', 'MANUAL', 'OFF']
-  const multeqLabels = { AUDYSSEY: 'Audyssey', 'BYP.LR': 'L/R Bypass', FLAT: 'Flat', MANUAL: 'Manual', OFF: 'Off' }
-  const ecoModes = ['ON', 'AUTO', 'OFF']
+interface Props {
+  state: ReceiverState
+  post: PostFn
+}
+
+export default function AudioSettings({ state, post }: Props) {
+  const dynamicEq = state.dynamic_eq
+  const dynamicVol = state.dynamic_volume
+  const multeq = state.multeq
+  const sleepTimer = state.sleep_timer
+  const ecoMode = state.eco_mode
+
+  const dynVolModes = ['OFF', 'LIT', 'MED', 'HEV'] as const
+  const dynVolLabels: Record<string, string> = { OFF: 'Off', LIT: 'Light', MED: 'Medium', HEV: 'Heavy' }
+  const multeqModes = ['AUDYSSEY', 'BYP.LR', 'FLAT', 'MANUAL', 'OFF'] as const
+  const multeqLabels: Record<string, string> = { AUDYSSEY: 'Audyssey', 'BYP.LR': 'L/R Bypass', FLAT: 'Flat', MANUAL: 'Manual', OFF: 'Off' }
+  const ecoModes = ['ON', 'AUTO', 'OFF'] as const
 
   return (
     <div className="card space-y-5">
@@ -99,7 +105,7 @@ export default function AudioSettings({ state, post }) {
             {sleepTimer ? `${sleepTimer} min` : 'Off'}
           </span>
           <select
-            value={sleepTimer || ''}
+            value={sleepTimer ?? ''}
             onChange={(e) => post('/sleep', { minutes: e.target.value ? parseInt(e.target.value) : 0 })}
             className="bg-denon-surface text-denon-text text-xs rounded-lg px-2 py-1.5 border border-denon-border"
           >

@@ -1,12 +1,19 @@
 import { useState, useRef, useCallback, useEffect } from 'react'
+import type { ReceiverState, SendCommandFn, PostFn } from '../types'
 
-export default function VolumeControl({ state, sendCommand, post }) {
-  const volume = state?.volume
-  const muted = state?.muted
-  const volumeMax = state?.volume_max || 98
+interface Props {
+  state: ReceiverState
+  sendCommand: SendCommandFn
+  post: PostFn
+}
+
+export default function VolumeControl({ state, sendCommand, post }: Props) {
+  const volume = state.volume
+  const muted = state.muted
+  const volumeMax = state.volume_max ?? 98
   const [dragging, setDragging] = useState(false)
   const [localVol, setLocalVol] = useState(volume)
-  const debounceRef = useRef(null)
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   useEffect(() => {
     if (!dragging && volume != null) setLocalVol(volume)
@@ -15,7 +22,7 @@ export default function VolumeControl({ state, sendCommand, post }) {
   const displayVol = dragging ? localVol : volume
   const dB = displayVol != null ? (displayVol - 80).toFixed(1) : '—'
 
-  const handleChange = useCallback((e) => {
+  const handleChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const val = parseFloat(e.target.value)
     setLocalVol(val)
     setDragging(true)
