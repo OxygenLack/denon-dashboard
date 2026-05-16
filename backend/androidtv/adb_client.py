@@ -317,7 +317,11 @@ class AndroidTvAdbClient:
         self._require_enabled()
         env = os.environ.copy()
         self.storage_dir.mkdir(parents=True, exist_ok=True)
-        env.setdefault("HOME", str(self.storage_dir))
+        android_home = self.storage_dir / ".android"
+        android_home.mkdir(parents=True, exist_ok=True)
+        env["HOME"] = str(self.storage_dir)
+        env["ANDROID_USER_HOME"] = str(self.storage_dir)
+        env["ADB_VENDOR_KEYS"] = str(android_home / "adbkey")
         try:
             proc = await asyncio.create_subprocess_exec(
                 self.adb_path,
