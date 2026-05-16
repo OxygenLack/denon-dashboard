@@ -1,4 +1,5 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
+import AndroidTvLiveView from './AndroidTvLiveView'
 
 function TinyButton({ children, className = '', ...props }) {
   return (
@@ -25,7 +26,7 @@ function formatKb(value) {
   return `${Math.round(value / 1024)} MB`
 }
 
-export default function AndroidTvAdbPanel({ tv }) {
+export default function AndroidTvAdbPanel({ tv, mode = 'all', showHeader = true, onRemoteKey }) {
   const [host, setHost] = useState(tv?.host || '')
   const [connectPort, setConnectPort] = useState(5555)
   const [pairPort, setPairPort] = useState('')
@@ -37,26 +38,23 @@ export default function AndroidTvAdbPanel({ tv }) {
   const [busy, setBusy] = useState(null)
   const [error, setError] = useState(null)
   const [detailsOpen, setDetailsOpen] = useState(false)
-  const [screenshotUrl, setScreenshotUrl] = useState(null)
-  const [continuousScreenshot, setContinuousScreenshot] = useState(false)
   const [powerConfirm, setPowerConfirm] = useState(null)
   const [powerCountdown, setPowerCountdown] = useState(10)
   const [uninstallConfirm, setUninstallConfirm] = useState(null)
   const [uninstallCountdown, setUninstallCountdown] = useState(10)
-  const screenshotRef = useRef(null)
-  const screenshotBusyRef = useRef(false)
 
   const connected = Boolean(status?.connected)
   const current = status?.current_app || {}
   const diagnostics = status?.diagnostics || {}
   const storage = diagnostics.storage
   const statusLabel = status?.enabled === false ? 'ADB Disabled' : connected ? 'ADB Connected' : status?.state ? `ADB ${status.state}` : 'ADB Disconnected'
+  const showScreen = mode === 'all' || mode === 'screen'
+  const showApps = mode === 'all' || mode === 'apps'
+  const showAdb = mode === 'all' || mode === 'adb'
+  const showDetails = detailsOpen || mode === 'adb'
 
   useEffect(() => {
     loadStatus()
-    return () => {
-      if (screenshotRef.current) URL.revokeObjectURL(screenshotRef.current)
-    }
   }, [])
 
   useEffect(() => {
@@ -89,21 +87,6 @@ export default function AndroidTvAdbPanel({ tv }) {
     const timer = setTimeout(() => setUninstallCountdown(value => value - 1), 1000)
     return () => clearTimeout(timer)
   }, [uninstallConfirm, uninstallCountdown])
-
-  useEffect(() => {
-    if (!continuousScreenshot || !connected) return undefined
-    let cancelled = false
-    const tick = async () => {
-      if (cancelled || screenshotBusyRef.current) return
-      await refreshScreenshot({ trackBusy: false })
-    }
-    tick()
-    const timer = setInterval(tick, 1500)
-    return () => {
-      cancelled = true
-      clearInterval(timer)
-    }
-  }, [continuousScreenshot, connected])
 
   const request = async (path, body, method = 'POST', options = {}) => {
     const trackBusy = options.trackBusy !== false
@@ -168,7 +151,6 @@ export default function AndroidTvAdbPanel({ tv }) {
       setStatus(data)
       setDetailsOpen(true)
       setApps([])
-      clearScreenshot()
     }
   }
 
@@ -185,27 +167,6 @@ export default function AndroidTvAdbPanel({ tv }) {
   const refreshDiagnostics = async () => {
     const data = await request('/diagnostics', null, 'GET')
     if (data) setStatus(prev => ({ ...(prev || {}), diagnostics: data }))
-  }
-
-  const refreshScreenshot = async (options = {}) => {
-    if (screenshotBusyRef.current) return
-    screenshotBusyRef.current = true
-    try {
-      const blob = await request(`/screenshot?t=${Date.now()}`, null, 'GET', { blob: true, trackBusy: options.trackBusy !== false })
-      if (!blob) return
-      clearScreenshot()
-      const url = URL.createObjectURL(blob)
-      screenshotRef.current = url
-      setScreenshotUrl(url)
-    } finally {
-      screenshotBusyRef.current = false
-    }
-  }
-
-  const clearScreenshot = () => {
-    if (screenshotRef.current) URL.revokeObjectURL(screenshotRef.current)
-    screenshotRef.current = null
-    setScreenshotUrl(null)
   }
 
   const launchApp = async (app) => {
@@ -275,6 +236,7 @@ export default function AndroidTvAdbPanel({ tv }) {
 
   return (
     <div className="card space-y-4">
+      {showHeader && (
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h2 className="text-sm font-semibold text-denon-text">ADB</h2>
@@ -292,8 +254,9 @@ export default function AndroidTvAdbPanel({ tv }) {
           <svg className={`w-3 h-3 transition-transform ${detailsOpen ? 'rotate-180' : ''}`} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M6 9l6 6 6-6"/></svg>
         </button>
       </div>
+      )}
 
-      {detailsOpen && (
+      {showDetails && (
         <div className="space-y-3 fade-in">
           <div className="grid gap-2 sm:grid-cols-[1fr_7rem_auto_auto]">
             <input
@@ -373,6 +336,7 @@ export default function AndroidTvAdbPanel({ tv }) {
         </div>
       )}
 
+      {showScreen && (
       <div className="rounded-xl border border-denon-border/50 bg-denon-surface/40 p-3">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <div>
@@ -385,45 +349,17 @@ export default function AndroidTvAdbPanel({ tv }) {
           </TinyButton>
         </div>
       </div>
+      )}
 
-      <div className="grid gap-3 sm:grid-cols-2">
-        <div className="rounded-xl border border-denon-border/50 bg-denon-surface/40 p-3 space-y-3">
-          <div className="flex items-center justify-between gap-2">
-            <h3 className="text-xs font-semibold text-denon-muted uppercase">Screenshot</h3>
-            <div className="flex gap-2">
-              <TinyButton disabled={!connected || busy === '/screenshot'} onClick={() => refreshScreenshot()} className="bg-denon-surface text-denon-text border border-denon-border">
-                Screenshot
-              </TinyButton>
-              <button
-                type="button"
-                aria-label="Continuous screenshot refresh"
-                title="Continuous refresh"
-                disabled={!connected}
-                onClick={() => setContinuousScreenshot(value => !value)}
-                className={`flex h-9 w-9 items-center justify-center rounded-xl border transition-all active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed ${
-                  continuousScreenshot
-                    ? 'border-denon-green/50 bg-denon-green/15 text-denon-green ring-1 ring-denon-green/40'
-                    : 'border-denon-border bg-denon-surface text-denon-text'
-                }`}
-              >
-                <svg className={`h-4 w-4 ${continuousScreenshot ? 'animate-spin' : ''}`} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M21 12a9 9 0 0 1-15.5 6.2" />
-                  <path d="M3 12A9 9 0 0 1 18.5 5.8" />
-                  <path d="M18 2v4h-4" />
-                  <path d="M6 22v-4h4" />
-                </svg>
-              </button>
-            </div>
-          </div>
-          <div className="aspect-video overflow-hidden rounded-xl border border-denon-border/60 bg-black/40 flex items-center justify-center">
-            {screenshotUrl ? (
-              <img src={screenshotUrl} alt="Android TV screenshot" className="h-full w-full object-contain" />
-            ) : (
-              <span className="text-xs text-denon-muted">No screenshot</span>
-            )}
-          </div>
-        </div>
+      {showScreen && (
+      <div className={mode === 'screen' ? 'space-y-3' : 'grid gap-3 sm:grid-cols-2'}>
+        <AndroidTvLiveView
+          adbConnected={connected}
+          remoteConnected={Boolean(tv?.connected)}
+          onRemoteKey={onRemoteKey}
+        />
 
+        {showAdb && (
         <div className="rounded-xl border border-denon-border/50 bg-denon-surface/40 p-3 space-y-3">
           <div className="flex items-center justify-between gap-2">
             <h3 className="text-xs font-semibold text-denon-muted uppercase">Diagnostics</h3>
@@ -452,8 +388,42 @@ export default function AndroidTvAdbPanel({ tv }) {
             </TinyButton>
           </div>
         </div>
+        )}
       </div>
+      )}
 
+      {!showScreen && showAdb && (
+      <div className="rounded-xl border border-denon-border/50 bg-denon-surface/40 p-3 space-y-3">
+        <div className="flex items-center justify-between gap-2">
+          <h3 className="text-xs font-semibold text-denon-muted uppercase">Diagnostics</h3>
+          <TinyButton disabled={!connected} onClick={refreshDiagnostics} className="bg-denon-surface text-denon-text border border-denon-border">
+            Refresh
+          </TinyButton>
+        </div>
+        <div className="grid grid-cols-2 gap-2 text-xs">
+          <Info label="Ping" value={diagnostics.ping === true ? 'OK' : diagnostics.ping === false ? 'Fail' : '-'} />
+          <Info label="Storage" value={storage ? `${formatKb(storage.available_kb)} free` : '-'} />
+          <Info label="Used" value={storage?.used_percent} />
+          <Info label="Last error" value={diagnostics.last_error || status?.last_error || '-'} />
+        </div>
+        <div className="grid grid-cols-2 gap-2">
+          <TinyButton disabled={!connected} onClick={() => runPower('wake')} className="bg-denon-surface text-denon-text border border-denon-border">
+            Wake
+          </TinyButton>
+          <TinyButton disabled={!connected} onClick={() => startPowerConfirm('sleep')} className="bg-denon-surface text-denon-text border border-denon-border">
+            Sleep
+          </TinyButton>
+          <TinyButton disabled={!connected} onClick={() => startPowerConfirm('power')} className="bg-denon-surface text-denon-text border border-denon-border">
+            Power
+          </TinyButton>
+          <TinyButton disabled={!connected} onClick={() => startPowerConfirm('reboot')} className="bg-denon-red/20 text-denon-red border border-denon-red/40">
+            Reboot
+          </TinyButton>
+        </div>
+      </div>
+      )}
+
+      {showApps && (
       <div className="rounded-xl border border-denon-border/50 bg-denon-surface/40 p-3 space-y-3">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <h3 className="text-xs font-semibold text-denon-muted uppercase">Apps</h3>
@@ -495,7 +465,9 @@ export default function AndroidTvAdbPanel({ tv }) {
           )}
         </div>
       </div>
+      )}
 
+      {showAdb && (
       <div className="flex gap-2">
         <input
           type="text"
@@ -510,6 +482,7 @@ export default function AndroidTvAdbPanel({ tv }) {
           Send
         </TinyButton>
       </div>
+      )}
 
       {powerConfirm && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 px-4">

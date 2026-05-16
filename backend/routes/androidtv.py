@@ -7,7 +7,7 @@ import logging
 from typing import Literal
 
 from androidtvremote2 import CannotConnect, ConnectionClosed, InvalidAuth
-from fastapi import APIRouter, HTTPException, Response
+from fastapi import APIRouter, HTTPException, Query, Response
 from pydantic import BaseModel, Field
 
 from androidtv.discovery import discover_android_tvs
@@ -239,11 +239,26 @@ async def androidtv_adb_power(req: AndroidTvAdbPowerRequest):
 
 
 @router.get("/adb/screenshot")
-async def androidtv_adb_screenshot():
-    data = await _adb_call(app_state.android_adb.screenshot())
+async def androidtv_adb_screenshot(
+    format: Literal["png", "jpeg", "webp"] = Query("png"),
+    max_width: int | None = Query(None, ge=240, le=3840),
+    quality: int = Query(60, ge=30, le=95),
+):
+    data = await _adb_call(
+        app_state.android_adb.screenshot(
+            image_format=format,
+            max_width=max_width,
+            quality=quality,
+        )
+    )
+    media_type = {
+        "png": "image/png",
+        "jpeg": "image/jpeg",
+        "webp": "image/webp",
+    }[format]
     return Response(
         content=data,
-        media_type="image/png",
+        media_type=media_type,
         headers={"Cache-Control": "no-store"},
     )
 

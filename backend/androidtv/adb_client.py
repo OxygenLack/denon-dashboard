@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import asyncio
+import io
 import json
 import logging
 import os
@@ -299,9 +300,24 @@ class AndroidTvAdbClient:
             raise ValueError("Unsupported power action")
         return {"ok": True}
 
-    async def screenshot(self) -> bytes:
+    async def screenshot(
+        self,
+        *,
+        image_format: str = "png",
+        max_width: int | None = None,
+        quality: int = 60,
+    ) -> bytes:
         self._require_connected()
-        return await self._adb_bytes("-s", self._serial(), "exec-out", "screencap", "-p", timeout=15)
+        data = await self._adb_bytes("-s", self._serial(), "exec-out", "screencap", "-p", timeout=15)
+        normalized_format = image_format.lower()
+        if normalized_format == "png" and not max_width:
+            return data
+        return self._convert_screenshot(
+            data,
+            image_format=normalized_format,
+            max_width=max_width,
+            quality=quality,
+        )
 
     async def _get_state(self) -> str | None:
         if not self.serial:
@@ -497,3 +513,36 @@ class AndroidTvAdbClient:
             .replace('"', '\\"')
             .replace("'", "\\'")
         )
+
+    def _convert_screenshot(
+        self,
+        data: bytes,
+        *,
+        image_format: str,
+        max_width: int | None,
+        quality: int,
+    ) -> bytes:
+        try:
+            from PIL import Image
+        except ImportError as exc:
+            raise AdbError("Pillow is required for optimized screenshots") from exc
+
+        if image_format not in {"png", "jpeg", "webp"}:
+            raise ValueError("Unsupported screenshot format")
+        quality = max(30, min(int(quality), 95))
+        with Image.open(io.BytesIO(data)) as image:
+            image.load()
+            if max_width and image.width > max_width:
+                ratio = max_width / image.width
+                size = (max_width, max(1, round(image.height * ratio)))
+                image = image.resize(size, Image.Resampling.BILINEAR)
+            output = io.BytesIO()
+            if image_format == "png":
+                image.save(output, format="PNG", optimize=True)
+            elif image_format == "webp":
+                image.save(output, format="WEBP", quality=quality, method=4)
+            else:
+                if image.mode not in ("RGB", "L"):
+                    image = image.convert("RGB")
+                image.save(output, format="JPEG", quality=quality, optimize=True)
+            return output.getvalue()

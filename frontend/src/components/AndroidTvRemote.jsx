@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import AndroidTvAdbPanel from './AndroidTvAdbPanel'
+import AndroidTvLiveView from './AndroidTvLiveView'
 
 const KEYS = {
   up: 'DPAD_UP',
@@ -146,6 +147,14 @@ function RemoteIcon({ type, className = 'w-6 h-6' }) {
   }
 }
 
+function vibrate() {
+  try {
+    navigator?.vibrate?.(12)
+  } catch {
+    // Optional browser capability.
+  }
+}
+
 export default function AndroidTvRemote({ state }) {
   const tv = state?.android_tv || {}
   const [manualIp, setManualIp] = useState(tv.host || '')
@@ -157,6 +166,7 @@ export default function AndroidTvRemote({ state }) {
   const [powerConfirm, setPowerConfirm] = useState(false)
   const [powerCountdown, setPowerCountdown] = useState(10)
   const [detailsOpen, setDetailsOpen] = useState(false)
+  const [activeAndroidPanel, setActiveAndroidPanel] = useState('remote')
   const [lastCommand, setLastCommand] = useState(null)
   const [toast, setToast] = useState(null)
   const [activeFeedback, setActiveFeedback] = useState(null)
@@ -250,6 +260,7 @@ export default function AndroidTvRemote({ state }) {
       feedbackTimer.current = setTimeout(() => setActiveFeedback(null), 180)
     }
     if (!ok) showCommandError(`${label} failed`)
+    if (ok) vibrate()
     return ok
   }
   const sendText = async () => {
@@ -261,6 +272,7 @@ export default function AndroidTvRemote({ state }) {
     setLastCommand({ label: 'Text input', latency, ok: Boolean(ok) })
     setActiveFeedback({ label: 'Text input', state: ok ? 'ok' : 'fail' })
     setTimeout(() => setActiveFeedback(null), 180)
+    if (ok) vibrate()
     if (ok) setText('')
     else showCommandError('Text input failed')
     return Boolean(ok)
@@ -279,9 +291,12 @@ export default function AndroidTvRemote({ state }) {
   }
 
   const connected = tv.connected
+  const adb = state?.android_adb || {}
   const needsPairing = tv.pairing
   const statusLabel = connected ? `Connected ${tv.host || ''}` : tv.pairing ? 'Pairing' : tv.host ? 'Reconnecting...' : 'Disconnected'
   const statusClass = connected ? 'badge-green' : tv.pairing || tv.host ? 'badge-muted' : 'badge-red'
+  const adbStatusLabel = adb.enabled === false ? 'ADB Disabled' : adb.connected ? 'ADB Connected' : adb.state ? `ADB ${adb.state}` : 'ADB Disconnected'
+  const adbStatusClass = adb.connected ? 'badge-green' : adb.enabled === false || adb.state === 'unauthorized' ? 'badge-muted' : 'badge-red'
   const lastError = error || tv.error
   const fb = (label) => activeFeedback?.label === label ? activeFeedback.state : null
 
@@ -347,6 +362,14 @@ export default function AndroidTvRemote({ state }) {
               <span className={`w-2 h-2 rounded-full ${connected ? 'bg-denon-green' : tv.pairing || tv.host ? 'bg-denon-muted' : 'bg-denon-red'}`} />
               {statusLabel}
               <svg className={`w-3 h-3 transition-transform ${detailsOpen ? 'rotate-180' : ''}`} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M6 9l6 6 6-6"/></svg>
+            </button>
+            <button
+              type="button"
+              onClick={() => setActiveAndroidPanel('adb')}
+              className={`${adbStatusClass} cursor-pointer hover:brightness-110`}
+            >
+              <span className={`w-2 h-2 rounded-full ${adb.connected ? 'bg-denon-green' : 'bg-denon-red'}`} />
+              {adbStatusLabel}
             </button>
           </div>
         </div>
@@ -459,8 +482,46 @@ export default function AndroidTvRemote({ state }) {
         )}
       </div>
 
+      <div className="grid grid-cols-4 gap-1 rounded-2xl border border-denon-border/50 bg-denon-card/50 p-1.5 lg:hidden">
+        {[
+          ['remote', 'Remote'],
+          ['screen', 'Screen'],
+          ['apps', 'Apps'],
+          ['adb', 'ADB'],
+        ].map(([id, label]) => (
+          <button
+            key={id}
+            type="button"
+            onClick={() => setActiveAndroidPanel(id)}
+            className={`rounded-xl px-2 py-2 text-xs font-semibold transition-all ${
+              activeAndroidPanel === id
+                ? 'bg-denon-surface text-denon-gold border border-denon-gold/30'
+                : 'text-denon-muted hover:text-denon-text'
+            }`}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
+
+      <div className="lg:grid lg:grid-cols-[minmax(360px,420px)_1fr] lg:items-start lg:gap-4">
+        <div className={`${activeAndroidPanel === 'remote' ? '' : 'hidden'} lg:block`}>
       {connected && (
       <div className="card relative space-y-5">
+        {adb.enabled !== false && (
+          <div className="sticky top-2 z-20 lg:hidden">
+            <AndroidTvLiveView
+              adbConnected={Boolean(adb.connected)}
+              remoteConnected={connected}
+              onRemoteKey={sendKey}
+              variant="mini"
+              defaultQuality="low"
+              defaultInterval="balanced"
+              defaultLive={Boolean(adb.connected)}
+            />
+          </div>
+        )}
+
         <div className="absolute left-5 top-5 max-[520px]:static max-[520px]:flex max-[520px]:justify-start">
           <IconButton label="Power" disabled={!connected} onClick={startPowerConfirm} feedbackState={fb('Power')} className="w-24 h-12 rounded-2xl bg-denon-red/80 border-denon-red/50 max-[520px]:w-16 max-[520px]:h-10 max-[520px]:rounded-xl">
             <RemoteIcon type="power" className="w-6 h-6" />
@@ -533,8 +594,19 @@ export default function AndroidTvRemote({ state }) {
         </div>
       </div>
       )}
+        </div>
 
-      <AndroidTvAdbPanel tv={tv} />
+        <div className={`${activeAndroidPanel === 'remote' ? 'hidden' : ''} lg:block`}>
+          <div className="lg:hidden">
+            {activeAndroidPanel === 'screen' && <AndroidTvAdbPanel tv={tv} mode="screen" showHeader={false} onRemoteKey={sendKey} />}
+            {activeAndroidPanel === 'apps' && <AndroidTvAdbPanel tv={tv} mode="apps" showHeader={false} onRemoteKey={sendKey} />}
+            {activeAndroidPanel === 'adb' && <AndroidTvAdbPanel tv={tv} mode="adb" onRemoteKey={sendKey} />}
+          </div>
+          <div className="hidden lg:block">
+            <AndroidTvAdbPanel tv={tv} mode="all" onRemoteKey={sendKey} />
+          </div>
+        </div>
+      </div>
 
       {powerConfirm && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 px-4">

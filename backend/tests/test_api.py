@@ -493,15 +493,16 @@ async def test_androidtv_adb_screenshot(monkeypatch):
     from main import app
     from state import app_state
 
-    screenshot = AsyncMock(return_value=b"\x89PNG\r\n\x1a\n")
+    screenshot = AsyncMock(return_value=b"\xff\xd8\xff\xe0")
     monkeypatch.setattr(app_state.android_adb, "screenshot", screenshot)
 
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://test") as ac:
-        resp = await ac.get("/api/v1/androidtv/adb/screenshot")
+        resp = await ac.get("/api/v1/androidtv/adb/screenshot?format=jpeg&max_width=960&quality=60")
     assert resp.status_code == 200
-    assert resp.headers["content-type"] == "image/png"
-    assert resp.content.startswith(b"\x89PNG")
+    assert resp.headers["content-type"] == "image/jpeg"
+    assert resp.content.startswith(b"\xff\xd8")
+    screenshot.assert_called_once_with(image_format="jpeg", max_width=960, quality=60)
 
 
 @pytest.mark.asyncio

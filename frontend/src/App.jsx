@@ -88,7 +88,7 @@ export default function App() {
   )
 
   return (
-    <div className="max-w-2xl mx-auto px-4 pb-8 min-h-screen">
+    <div className={`${zone === 'androidtv' ? 'max-w-6xl' : 'max-w-2xl'} mx-auto px-4 pb-8 min-h-screen`}>
       <MemoStatusBar
         deviceName={deviceName}
         state={state}
