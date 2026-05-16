@@ -41,8 +41,16 @@ export default function AndroidTvAdbPanel({ tv }) {
   const [continuousScreenshot, setContinuousScreenshot] = useState(false)
   const [powerConfirm, setPowerConfirm] = useState(null)
   const [powerCountdown, setPowerCountdown] = useState(10)
+  const [uninstallConfirm, setUninstallConfirm] = useState(null)
+  const [uninstallCountdown, setUninstallCountdown] = useState(10)
   const screenshotRef = useRef(null)
   const screenshotBusyRef = useRef(false)
+
+  const connected = Boolean(status?.connected)
+  const current = status?.current_app || {}
+  const diagnostics = status?.diagnostics || {}
+  const storage = diagnostics.storage
+  const statusLabel = status?.enabled === false ? 'ADB Disabled' : connected ? 'ADB Connected' : status?.state ? `ADB ${status.state}` : 'ADB Disconnected'
 
   useEffect(() => {
     loadStatus()
@@ -68,6 +76,19 @@ export default function AndroidTvAdbPanel({ tv }) {
     const timer = setTimeout(() => setPowerCountdown(value => value - 1), 1000)
     return () => clearTimeout(timer)
   }, [powerConfirm, powerCountdown])
+
+  useEffect(() => {
+    if (!uninstallConfirm) return undefined
+    if (uninstallCountdown <= 0) {
+      const app = uninstallConfirm
+      setUninstallConfirm(null)
+      setUninstallCountdown(10)
+      uninstallApp(app)
+      return undefined
+    }
+    const timer = setTimeout(() => setUninstallCountdown(value => value - 1), 1000)
+    return () => clearTimeout(timer)
+  }, [uninstallConfirm, uninstallCountdown])
 
   useEffect(() => {
     if (!continuousScreenshot || !connected) return undefined
@@ -195,6 +216,24 @@ export default function AndroidTvAdbPanel({ tv }) {
     if (ok) setTimeout(refreshCurrent, 600)
   }
 
+  const startUninstallConfirm = (app) => {
+    setUninstallCountdown(10)
+    setUninstallConfirm(app)
+  }
+
+  const cancelUninstallConfirm = () => {
+    setUninstallConfirm(null)
+    setUninstallCountdown(10)
+  }
+
+  const uninstallApp = async (app) => {
+    const ok = await request('/apps/uninstall', { package: app.package }, 'POST', { trackBusy: false })
+    if (ok) {
+      setApps(items => items.filter(item => item.package !== app.package))
+      setTimeout(refreshCurrent, 600)
+    }
+  }
+
   const toggleFavorite = async (app) => {
     const next = !app.favorite
     const ok = await request('/apps/favorite', { package: app.package, favorite: next }, 'POST', { trackBusy: false })
@@ -231,12 +270,6 @@ export default function AndroidTvAdbPanel({ tv }) {
       app.package.toLowerCase().includes(needle)
     )
   }, [apps, query])
-
-  const connected = Boolean(status?.connected)
-  const current = status?.current_app || {}
-  const diagnostics = status?.diagnostics || {}
-  const storage = diagnostics.storage
-  const statusLabel = status?.enabled === false ? 'ADB Disabled' : connected ? 'ADB Connected' : status?.state ? `ADB ${status.state}` : 'ADB Disconnected'
 
   return (
     <div className="card space-y-4">
@@ -447,6 +480,9 @@ export default function AndroidTvAdbPanel({ tv }) {
                 <TinyButton onClick={() => forceStopApp(app)} className="bg-denon-red/10 text-denon-red border border-denon-red/30">
                   Stop
                 </TinyButton>
+                <TinyButton onClick={() => startUninstallConfirm(app)} className="bg-denon-red/20 text-denon-red border border-denon-red/40">
+                  Remove
+                </TinyButton>
               </div>
             </div>
           ))}
@@ -488,6 +524,30 @@ export default function AndroidTvAdbPanel({ tv }) {
                 runPower(action)
               }}>
                 Run now
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {uninstallConfirm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 px-4">
+          <div className="w-full max-w-sm rounded-2xl border border-denon-border bg-denon-card p-5 shadow-2xl">
+            <h3 className="text-base font-semibold text-denon-text">Uninstall app</h3>
+            <p className="text-xs text-denon-muted mt-1">
+              {uninstallConfirm.name || uninstallConfirm.package} will be uninstalled in {uninstallCountdown}s.
+            </p>
+            <p className="mt-2 truncate font-mono text-[11px] text-denon-muted">{uninstallConfirm.package}</p>
+            <div className="mt-5 grid grid-cols-2 gap-3">
+              <button type="button" className="btn-ghost" onClick={cancelUninstallConfirm}>
+                Cancel
+              </button>
+              <button type="button" className="btn-danger" onClick={() => {
+                const app = uninstallConfirm
+                cancelUninstallConfirm()
+                uninstallApp(app)
+              }}>
+                Remove now
               </button>
             </div>
           </div>

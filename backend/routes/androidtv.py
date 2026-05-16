@@ -205,6 +205,11 @@ async def androidtv_adb_force_stop_app(req: AndroidTvAdbAppRequest):
     return await _adb_call(app_state.android_adb.force_stop_app(req.package))
 
 
+@router.post("/adb/apps/uninstall")
+async def androidtv_adb_uninstall_app(req: AndroidTvAdbAppRequest):
+    return await _adb_call(app_state.android_adb.uninstall_app(req.package))
+
+
 @router.post("/adb/apps/favorite")
 async def androidtv_adb_favorite(req: AndroidTvAdbFavoriteRequest):
     return await _adb_call(app_state.android_adb.set_favorite(req.package, req.favorite))

@@ -259,6 +259,12 @@ class AndroidTvAdbClient:
         await self._shell("am", "force-stop", package)
         return {"ok": True}
 
+    async def uninstall_app(self, package: str) -> dict[str, Any]:
+        self._require_connected()
+        self._validate_package(package)
+        await self._shell("pm", "uninstall", package)
+        return {"ok": True}
+
     async def set_favorite(self, package: str, favorite: bool) -> dict[str, Any]:
         self._validate_package(package)
         favorites = self._load_favorites()

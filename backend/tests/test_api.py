@@ -500,6 +500,24 @@ async def test_androidtv_adb_launch_app(monkeypatch):
 
 
 @pytest.mark.asyncio
+async def test_androidtv_adb_uninstall_app(monkeypatch):
+    from main import app
+    from state import app_state
+
+    uninstall_app = AsyncMock(return_value={"ok": True})
+    monkeypatch.setattr(app_state.android_adb, "uninstall_app", uninstall_app)
+
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test") as ac:
+        resp = await ac.post(
+            "/api/v1/androidtv/adb/apps/uninstall",
+            json={"package": "org.example.app"},
+        )
+    assert resp.status_code == 200
+    uninstall_app.assert_called_once_with("org.example.app")
+
+
+@pytest.mark.asyncio
 async def test_androidtv_adb_power(monkeypatch):
     from main import app
     from state import app_state

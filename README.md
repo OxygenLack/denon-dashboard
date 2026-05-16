@@ -297,6 +297,7 @@ The dashboard exposes a full REST API at `/api/v1/`. All POST endpoints accept J
 | `GET` | `/api/v1/androidtv/adb/apps` | - | List launchable apps |
 | `POST` | `/api/v1/androidtv/adb/apps/launch` | `{"package": "org.xbmc.kodi", "activity": ".Splash"}` | Launch an app |
 | `POST` | `/api/v1/androidtv/adb/apps/force-stop` | `{"package": "org.xbmc.kodi"}` | Force-stop an app |
+| `POST` | `/api/v1/androidtv/adb/apps/uninstall` | `{"package": "org.example.app"}` | Uninstall an app |
 | `POST` | `/api/v1/androidtv/adb/apps/favorite` | `{"package": "org.xbmc.kodi", "favorite": true}` | Save app favorite |
 | `POST` | `/api/v1/androidtv/adb/text` | `{"text": "search text"}` | Send text input over ADB |
 | `POST` | `/api/v1/androidtv/adb/power` | `{"action": "wake"}` | Run `wake`, `sleep`, `power`, or `reboot` |
