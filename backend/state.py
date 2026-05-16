@@ -10,6 +10,8 @@ from typing import Any
 from fastapi import WebSocket
 
 from config import settings
+from androidtv.adb_client import AndroidTvAdbClient
+from androidtv.remote_client import AndroidTvRemoteClient
 from denon.const import CHANNEL_NAMES, DEFAULT_SOURCES
 from denon.heos_client import HeosClient
 from denon.telnet_client import DenonTelnetClient
@@ -31,6 +33,17 @@ class AppState:
         self.media_state: dict[str, Any] = {"now_playing": None, "play_state": None}
         self._media_poll_task: asyncio.Task | None = None
         self._lock = asyncio.Lock()
+        self.android_tv = AndroidTvRemoteClient(
+            client_name=settings.android_tv_client_name,
+            storage_dir=settings.android_tv_storage_dir,
+            notify=self.broadcast_state,
+        )
+        self.android_adb = AndroidTvAdbClient(
+            enabled=settings.android_tv_adb_enabled,
+            adb_path=settings.android_tv_adb_path,
+            storage_dir=settings.android_tv_adb_storage_dir,
+            default_port=settings.android_tv_adb_port,
+        )
 
     @property
     def discovered_sources(self) -> dict[str, str]:
@@ -189,6 +202,8 @@ class AppState:
             "now_playing": self.media_state.get("now_playing"),
             "play_state": self.media_state.get("play_state"),
             "stream_quality": self._detect_stream_quality(),
+            "android_tv": self.android_tv.build_status(),
+            "android_adb": self.android_adb.build_status(),
         }
 
     async def broadcast_state(self) -> None:
