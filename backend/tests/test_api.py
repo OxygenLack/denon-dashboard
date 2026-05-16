@@ -328,6 +328,27 @@ async def test_androidtv_pair_start(monkeypatch):
 
 
 @pytest.mark.asyncio
+async def test_androidtv_connect_autoconnects_adb(monkeypatch):
+    from main import app
+    from state import app_state
+
+    remote_connect = AsyncMock(return_value={"connected": True, "host": "192.168.1.120"})
+    adb_connect = AsyncMock(return_value={"connected": True, "host": "192.168.1.120"})
+    monkeypatch.setattr(app_state.android_tv, "connect", remote_connect)
+    monkeypatch.setattr(app_state.android_adb, "enabled", True)
+    monkeypatch.setattr(app_state.android_adb, "default_port", 5555)
+    monkeypatch.setattr(app_state.android_adb, "load_last_host", lambda: None)
+    monkeypatch.setattr(app_state.android_adb, "connect", adb_connect)
+
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test") as ac:
+        resp = await ac.post("/api/v1/androidtv/connect", json={"host": "192.168.1.120"})
+    assert resp.status_code == 200
+    remote_connect.assert_called_once_with("192.168.1.120")
+    adb_connect.assert_called_once_with("192.168.1.120", 5555)
+
+
+@pytest.mark.asyncio
 async def test_androidtv_pair_start_ipv6(monkeypatch):
     from main import app
     from state import app_state

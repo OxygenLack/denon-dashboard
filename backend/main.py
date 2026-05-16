@@ -92,8 +92,8 @@ async def lifespan(app: FastAPI):
         await app_state.android_tv.connect(android_tv_host)
 
     adb_last_host = app_state.android_adb.load_last_host()
-    if settings.android_tv_adb_enabled and adb_last_host:
-        adb_host, adb_port = adb_last_host
+    if settings.android_tv_adb_enabled and (adb_last_host or android_tv_host):
+        adb_host, adb_port = adb_last_host or (android_tv_host, settings.android_tv_adb_port)
         _LOGGER.info("Connecting to Android TV ADB host %s:%s...", adb_host, adb_port)
         try:
             await app_state.android_adb.connect(adb_host, adb_port)

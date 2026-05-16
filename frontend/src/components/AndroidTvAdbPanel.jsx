@@ -145,6 +145,7 @@ export default function AndroidTvAdbPanel({ tv }) {
     const data = await request('/connect', { host: host.trim(), port: Number(connectPort) || 5555 })
     if (data) {
       setStatus(data)
+      if (data.connected) setDetailsOpen(false)
       await loadApps()
     }
   }
@@ -165,6 +166,7 @@ export default function AndroidTvAdbPanel({ tv }) {
     const data = await request('/disconnect')
     if (data) {
       setStatus(data)
+      setDetailsOpen(true)
       setApps([])
       clearScreenshot()
     }

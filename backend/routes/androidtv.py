@@ -101,7 +101,9 @@ async def androidtv_discover():
 async def androidtv_connect(req: AndroidTvHostRequest):
     host = _validate_lan_ip(req.host)
     try:
-        return await app_state.android_tv.connect(host)
+        status = await app_state.android_tv.connect(host)
+        await _try_adb_autoconnect(host)
+        return status
     except ValueError as exc:
         raise HTTPException(400, str(exc))
 
@@ -126,7 +128,11 @@ async def androidtv_pair_start(req: AndroidTvHostRequest):
 @router.post("/pair/finish")
 async def androidtv_pair_finish(req: AndroidTvPairFinishRequest):
     try:
-        return await app_state.android_tv.finish_pairing(req.code.strip().upper())
+        status = await app_state.android_tv.finish_pairing(req.code.strip().upper())
+        host = app_state.android_tv.host
+        if host:
+            await _try_adb_autoconnect(host)
+        return status
     except InvalidAuth:
         raise HTTPException(401, "Invalid pairing code")
     except ConnectionClosed:
@@ -264,3 +270,15 @@ async def _adb_call(awaitable):
         if "not connected" in msg.lower():
             raise HTTPException(503, msg)
         raise HTTPException(502, msg or "ADB command failed")
+
+
+async def _try_adb_autoconnect(host: str) -> None:
+    adb = app_state.android_adb
+    if not adb.enabled:
+        return
+    try:
+        saved = adb.load_last_host()
+        port = saved[1] if saved and saved[0] == host else adb.default_port
+        await adb.connect(host, port)
+    except Exception as exc:
+        _LOGGER.debug("ADB auto-connect to %s failed: %s", host, exc)
