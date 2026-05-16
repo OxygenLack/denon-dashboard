@@ -36,10 +36,13 @@ export default function AndroidTvAdbPanel({ tv }) {
   const [text, setText] = useState('')
   const [busy, setBusy] = useState(null)
   const [error, setError] = useState(null)
+  const [detailsOpen, setDetailsOpen] = useState(false)
   const [screenshotUrl, setScreenshotUrl] = useState(null)
+  const [continuousScreenshot, setContinuousScreenshot] = useState(false)
   const [powerConfirm, setPowerConfirm] = useState(null)
   const [powerCountdown, setPowerCountdown] = useState(10)
   const screenshotRef = useRef(null)
+  const screenshotBusyRef = useRef(false)
 
   useEffect(() => {
     loadStatus()
@@ -65,6 +68,21 @@ export default function AndroidTvAdbPanel({ tv }) {
     const timer = setTimeout(() => setPowerCountdown(value => value - 1), 1000)
     return () => clearTimeout(timer)
   }, [powerConfirm, powerCountdown])
+
+  useEffect(() => {
+    if (!continuousScreenshot || !connected) return undefined
+    let cancelled = false
+    const tick = async () => {
+      if (cancelled || screenshotBusyRef.current) return
+      await refreshScreenshot({ trackBusy: false })
+    }
+    tick()
+    const timer = setInterval(tick, 1500)
+    return () => {
+      cancelled = true
+      clearInterval(timer)
+    }
+  }, [continuousScreenshot, connected])
 
   const request = async (path, body, method = 'POST', options = {}) => {
     const trackBusy = options.trackBusy !== false
@@ -146,13 +164,19 @@ export default function AndroidTvAdbPanel({ tv }) {
     if (data) setStatus(prev => ({ ...(prev || {}), diagnostics: data }))
   }
 
-  const refreshScreenshot = async () => {
-    const blob = await request(`/screenshot?t=${Date.now()}`, null, 'GET', { blob: true })
-    if (!blob) return
-    clearScreenshot()
-    const url = URL.createObjectURL(blob)
-    screenshotRef.current = url
-    setScreenshotUrl(url)
+  const refreshScreenshot = async (options = {}) => {
+    if (screenshotBusyRef.current) return
+    screenshotBusyRef.current = true
+    try {
+      const blob = await request(`/screenshot?t=${Date.now()}`, null, 'GET', { blob: true, trackBusy: options.trackBusy !== false })
+      if (!blob) return
+      clearScreenshot()
+      const url = URL.createObjectURL(blob)
+      screenshotRef.current = url
+      setScreenshotUrl(url)
+    } finally {
+      screenshotBusyRef.current = false
+    }
   }
 
   const clearScreenshot = () => {
@@ -212,6 +236,7 @@ export default function AndroidTvAdbPanel({ tv }) {
   const current = status?.current_app || {}
   const diagnostics = status?.diagnostics || {}
   const storage = diagnostics.storage
+  const statusLabel = status?.enabled === false ? 'ADB Disabled' : connected ? 'ADB Connected' : status?.state ? `ADB ${status.state}` : 'ADB Disconnected'
 
   return (
     <div className="card space-y-4">
@@ -222,87 +247,96 @@ export default function AndroidTvAdbPanel({ tv }) {
             {status?.model || tv?.device_name || tv?.device_info?.model || 'Android TV'}
           </p>
         </div>
-        <span className={statusClass(status)}>
+        <button
+          type="button"
+          onClick={() => setDetailsOpen(open => !open)}
+          className={`${statusClass(status)} cursor-pointer hover:brightness-110`}
+        >
           <span className={`w-2 h-2 rounded-full ${connected ? 'bg-denon-green' : 'bg-denon-red'}`} />
-          {status?.enabled === false ? 'Disabled' : connected ? 'Connected' : status?.state || 'Disconnected'}
-        </span>
+          {statusLabel}
+          <svg className={`w-3 h-3 transition-transform ${detailsOpen ? 'rotate-180' : ''}`} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M6 9l6 6 6-6"/></svg>
+        </button>
       </div>
 
-      <div className="grid gap-2 sm:grid-cols-[1fr_7rem_auto_auto]">
-        <input
-          type="text"
-          value={host}
-          onChange={e => setHost(e.target.value)}
-          placeholder="192.168.1.120"
-          className="bg-denon-surface border border-denon-border rounded-xl px-3 py-2 text-sm text-denon-text placeholder-denon-muted focus:outline-none focus:border-denon-gold/50"
-        />
-        <input
-          type="number"
-          min="1"
-          max="65535"
-          value={connectPort}
-          onChange={e => setConnectPort(e.target.value)}
-          placeholder="5555"
-          className="bg-denon-surface border border-denon-border rounded-xl px-3 py-2 text-sm text-denon-text placeholder-denon-muted focus:outline-none focus:border-denon-gold/50"
-        />
-        <TinyButton disabled={!host.trim() || busy || status?.enabled === false} onClick={connect} className="bg-denon-gold text-denon-dark">
-          Connect
-        </TinyButton>
-        <TinyButton disabled={!connected || busy} onClick={disconnect} className="bg-denon-surface text-denon-text border border-denon-border">
-          Disconnect
-        </TinyButton>
-      </div>
+      {detailsOpen && (
+        <div className="space-y-3 fade-in">
+          <div className="grid gap-2 sm:grid-cols-[1fr_7rem_auto_auto]">
+            <input
+              type="text"
+              value={host}
+              onChange={e => setHost(e.target.value)}
+              placeholder="192.168.1.120"
+              className="bg-denon-surface border border-denon-border rounded-xl px-3 py-2 text-sm text-denon-text placeholder-denon-muted focus:outline-none focus:border-denon-gold/50"
+            />
+            <input
+              type="number"
+              min="1"
+              max="65535"
+              value={connectPort}
+              onChange={e => setConnectPort(e.target.value)}
+              placeholder="5555"
+              className="bg-denon-surface border border-denon-border rounded-xl px-3 py-2 text-sm text-denon-text placeholder-denon-muted focus:outline-none focus:border-denon-gold/50"
+            />
+            <TinyButton disabled={!host.trim() || busy || status?.enabled === false} onClick={connect} className="bg-denon-gold text-denon-dark">
+              Connect
+            </TinyButton>
+            <TinyButton disabled={!connected || busy} onClick={disconnect} className="bg-denon-surface text-denon-text border border-denon-border">
+              Disconnect
+            </TinyButton>
+          </div>
 
-      <div className="rounded-xl border border-denon-border/50 bg-denon-surface/40 p-3 space-y-3">
-        <div>
-          <h3 className="text-xs font-semibold text-denon-muted uppercase">Pair ADB</h3>
-          <p className="mt-1 text-[11px] text-denon-muted">
-            Use the pairing port and code shown by Wireless debugging on the Android TV.
-          </p>
+          <div className="rounded-xl border border-denon-border/50 bg-denon-surface/40 p-3 space-y-3">
+            <div>
+              <h3 className="text-xs font-semibold text-denon-muted uppercase">Pair ADB</h3>
+              <p className="mt-1 text-[11px] text-denon-muted">
+                Use the pairing port and code shown by Wireless debugging on the Android TV.
+              </p>
+            </div>
+            <div className="grid gap-2 sm:grid-cols-[1fr_7rem_8rem_auto]">
+              <input
+                type="text"
+                value={host}
+                onChange={e => setHost(e.target.value)}
+                placeholder="192.168.1.120"
+                className="bg-denon-dark border border-denon-border rounded-xl px-3 py-2 text-sm text-denon-text placeholder-denon-muted focus:outline-none focus:border-denon-gold/50"
+              />
+              <input
+                type="number"
+                min="1"
+                max="65535"
+                value={pairPort}
+                onChange={e => setPairPort(e.target.value)}
+                placeholder="Port"
+                className="bg-denon-dark border border-denon-border rounded-xl px-3 py-2 text-sm text-denon-text placeholder-denon-muted focus:outline-none focus:border-denon-gold/50"
+              />
+              <input
+                type="text"
+                value={pairCode}
+                onChange={e => setPairCode(e.target.value.toUpperCase())}
+                onKeyDown={e => e.key === 'Enter' && host.trim() && pairPort && pairCode.trim() && pair()}
+                placeholder="Code"
+                className="bg-denon-dark border border-denon-border rounded-xl px-3 py-2 text-sm text-denon-text placeholder-denon-muted focus:outline-none focus:border-denon-gold/50"
+              />
+              <TinyButton disabled={!host.trim() || !pairPort || !pairCode.trim() || busy || status?.enabled === false} onClick={pair} className="bg-denon-gold text-denon-dark">
+                Pair
+              </TinyButton>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-2 text-xs sm:grid-cols-4">
+            <Info label="Android" value={status?.android_version} />
+            <Info label="Build" value={status?.build} />
+            <Info label="Resolution" value={status?.resolution} />
+            <Info label="IP" value={diagnostics.wifi_ip} mono />
+          </div>
         </div>
-        <div className="grid gap-2 sm:grid-cols-[1fr_7rem_8rem_auto]">
-          <input
-            type="text"
-            value={host}
-            onChange={e => setHost(e.target.value)}
-            placeholder="192.168.1.120"
-            className="bg-denon-dark border border-denon-border rounded-xl px-3 py-2 text-sm text-denon-text placeholder-denon-muted focus:outline-none focus:border-denon-gold/50"
-          />
-          <input
-            type="number"
-            min="1"
-            max="65535"
-            value={pairPort}
-            onChange={e => setPairPort(e.target.value)}
-            placeholder="Port"
-            className="bg-denon-dark border border-denon-border rounded-xl px-3 py-2 text-sm text-denon-text placeholder-denon-muted focus:outline-none focus:border-denon-gold/50"
-          />
-          <input
-            type="text"
-            value={pairCode}
-            onChange={e => setPairCode(e.target.value.toUpperCase())}
-            onKeyDown={e => e.key === 'Enter' && host.trim() && pairPort && pairCode.trim() && pair()}
-            placeholder="Code"
-            className="bg-denon-dark border border-denon-border rounded-xl px-3 py-2 text-sm text-denon-text placeholder-denon-muted focus:outline-none focus:border-denon-gold/50"
-          />
-          <TinyButton disabled={!host.trim() || !pairPort || !pairCode.trim() || busy || status?.enabled === false} onClick={pair} className="bg-denon-gold text-denon-dark">
-            Pair
-          </TinyButton>
-        </div>
-      </div>
+      )}
 
       {error && (
         <div className="rounded-xl border border-denon-red/40 bg-denon-red/10 px-3 py-2 text-xs text-red-200">
           {error}
         </div>
       )}
-
-      <div className="grid grid-cols-2 gap-2 text-xs sm:grid-cols-4">
-        <Info label="Android" value={status?.android_version} />
-        <Info label="Build" value={status?.build} />
-        <Info label="Resolution" value={status?.resolution} />
-        <Info label="IP" value={diagnostics.wifi_ip} mono />
-      </div>
 
       <div className="rounded-xl border border-denon-border/50 bg-denon-surface/40 p-3">
         <div className="flex flex-wrap items-center justify-between gap-2">
@@ -321,9 +355,30 @@ export default function AndroidTvAdbPanel({ tv }) {
         <div className="rounded-xl border border-denon-border/50 bg-denon-surface/40 p-3 space-y-3">
           <div className="flex items-center justify-between gap-2">
             <h3 className="text-xs font-semibold text-denon-muted uppercase">Screenshot</h3>
-            <TinyButton disabled={!connected || busy === '/screenshot'} onClick={refreshScreenshot} className="bg-denon-surface text-denon-text border border-denon-border">
-              Screenshot
-            </TinyButton>
+            <div className="flex gap-2">
+              <TinyButton disabled={!connected || busy === '/screenshot'} onClick={() => refreshScreenshot()} className="bg-denon-surface text-denon-text border border-denon-border">
+                Screenshot
+              </TinyButton>
+              <button
+                type="button"
+                aria-label="Continuous screenshot refresh"
+                title="Continuous refresh"
+                disabled={!connected}
+                onClick={() => setContinuousScreenshot(value => !value)}
+                className={`flex h-9 w-9 items-center justify-center rounded-xl border transition-all active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed ${
+                  continuousScreenshot
+                    ? 'border-denon-green/50 bg-denon-green/15 text-denon-green ring-1 ring-denon-green/40'
+                    : 'border-denon-border bg-denon-surface text-denon-text'
+                }`}
+              >
+                <svg className={`h-4 w-4 ${continuousScreenshot ? 'animate-spin' : ''}`} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M21 12a9 9 0 0 1-15.5 6.2" />
+                  <path d="M3 12A9 9 0 0 1 18.5 5.8" />
+                  <path d="M18 2v4h-4" />
+                  <path d="M6 22v-4h4" />
+                </svg>
+              </button>
+            </div>
           </div>
           <div className="aspect-video overflow-hidden rounded-xl border border-denon-border/60 bg-black/40 flex items-center justify-center">
             {screenshotUrl ? (

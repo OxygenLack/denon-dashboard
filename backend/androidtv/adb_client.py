@@ -230,7 +230,18 @@ class AndroidTvAdbClient:
         if activity:
             component = f"{package}/{activity}"
             self._validate_component(component)
-            await self._shell("am", "start", "-n", component)
+            await self._shell(
+                "am",
+                "start",
+                "-a",
+                "android.intent.action.MAIN",
+                "-c",
+                "android.intent.category.LAUNCHER",
+                "-f",
+                "0x10200000",
+                "-n",
+                component,
+            )
         else:
             await self._shell(
                 "monkey",
