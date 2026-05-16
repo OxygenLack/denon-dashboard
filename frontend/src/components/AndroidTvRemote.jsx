@@ -170,6 +170,7 @@ export default function AndroidTvRemote({ state }) {
   const [lastCommand, setLastCommand] = useState(null)
   const [toast, setToast] = useState(null)
   const [activeFeedback, setActiveFeedback] = useState(null)
+  const [adbStatus, setAdbStatus] = useState(state?.android_adb || {})
   const feedbackTimer = useRef(null)
 
   useEffect(() => {
@@ -182,6 +183,10 @@ export default function AndroidTvRemote({ state }) {
     const timer = setTimeout(() => setPowerCountdown(value => value - 1), 1000)
     return () => clearTimeout(timer)
   }, [powerConfirm, powerCountdown])
+
+  useEffect(() => {
+    setAdbStatus(state?.android_adb || {})
+  }, [state?.android_adb])
 
   const request = async (path, body, method = 'POST', options = {}) => {
     const trackBusy = options.trackBusy !== false
@@ -291,7 +296,7 @@ export default function AndroidTvRemote({ state }) {
   }
 
   const connected = tv.connected
-  const adb = state?.android_adb || {}
+  const adb = adbStatus || {}
   const needsPairing = tv.pairing
   const statusLabel = connected ? `Connected ${tv.host || ''}` : tv.pairing ? 'Pairing' : tv.host ? 'Reconnecting...' : 'Disconnected'
   const statusClass = connected ? 'badge-green' : tv.pairing || tv.host ? 'badge-muted' : 'badge-red'
@@ -598,12 +603,12 @@ export default function AndroidTvRemote({ state }) {
 
         <div className={`${activeAndroidPanel === 'remote' ? 'hidden' : ''} lg:block`}>
           <div className="lg:hidden">
-            {activeAndroidPanel === 'screen' && <AndroidTvAdbPanel tv={tv} mode="screen" showHeader={false} onRemoteKey={sendKey} />}
-            {activeAndroidPanel === 'apps' && <AndroidTvAdbPanel tv={tv} mode="apps" showHeader={false} onRemoteKey={sendKey} />}
-            {activeAndroidPanel === 'adb' && <AndroidTvAdbPanel tv={tv} mode="adb" onRemoteKey={sendKey} />}
+            {activeAndroidPanel === 'screen' && <AndroidTvAdbPanel tv={tv} adbStatus={adbStatus} mode="screen" showHeader={false} onRemoteKey={sendKey} onStatusChange={setAdbStatus} />}
+            {activeAndroidPanel === 'apps' && <AndroidTvAdbPanel tv={tv} adbStatus={adbStatus} mode="apps" showHeader={false} onRemoteKey={sendKey} onStatusChange={setAdbStatus} />}
+            {activeAndroidPanel === 'adb' && <AndroidTvAdbPanel tv={tv} adbStatus={adbStatus} mode="adb" onRemoteKey={sendKey} onStatusChange={setAdbStatus} />}
           </div>
           <div className="hidden lg:block">
-            <AndroidTvAdbPanel tv={tv} mode="all" onRemoteKey={sendKey} />
+            <AndroidTvAdbPanel tv={tv} adbStatus={adbStatus} mode="all" onRemoteKey={sendKey} onStatusChange={setAdbStatus} />
           </div>
         </div>
       </div>

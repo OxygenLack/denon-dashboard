@@ -26,12 +26,12 @@ function formatKb(value) {
   return `${Math.round(value / 1024)} MB`
 }
 
-export default function AndroidTvAdbPanel({ tv, mode = 'all', showHeader = true, onRemoteKey }) {
+export default function AndroidTvAdbPanel({ tv, adbStatus = null, mode = 'all', showHeader = true, onRemoteKey, onStatusChange }) {
   const [host, setHost] = useState(tv?.host || '')
   const [connectPort, setConnectPort] = useState(5555)
   const [pairPort, setPairPort] = useState('')
   const [pairCode, setPairCode] = useState('')
-  const [status, setStatus] = useState(null)
+  const [status, setStatus] = useState(adbStatus)
   const [apps, setApps] = useState([])
   const [query, setQuery] = useState('')
   const [text, setText] = useState('')
@@ -56,6 +56,10 @@ export default function AndroidTvAdbPanel({ tv, mode = 'all', showHeader = true,
   useEffect(() => {
     loadStatus()
   }, [])
+
+  useEffect(() => {
+    if (adbStatus) setStatus(adbStatus)
+  }, [adbStatus])
 
   useEffect(() => {
     if (!tv?.host || host) return
@@ -120,6 +124,7 @@ export default function AndroidTvAdbPanel({ tv, mode = 'all', showHeader = true,
     const data = await request('/status', null, 'GET')
     if (!data) return
     setStatus(data)
+    onStatusChange?.(data)
     if (data.host && !host) setHost(data.host)
     if (data.port) setConnectPort(data.port)
   }
@@ -128,6 +133,7 @@ export default function AndroidTvAdbPanel({ tv, mode = 'all', showHeader = true,
     const data = await request('/connect', { host: host.trim(), port: Number(connectPort) || 5555 })
     if (data) {
       setStatus(data)
+      onStatusChange?.(data)
       if (data.connected) setDetailsOpen(false)
       await loadApps()
     }
@@ -149,6 +155,7 @@ export default function AndroidTvAdbPanel({ tv, mode = 'all', showHeader = true,
     const data = await request('/disconnect')
     if (data) {
       setStatus(data)
+      onStatusChange?.(data)
       setDetailsOpen(true)
       setApps([])
     }
@@ -161,12 +168,24 @@ export default function AndroidTvAdbPanel({ tv, mode = 'all', showHeader = true,
 
   const refreshCurrent = async () => {
     const data = await request('/current-app', null, 'GET')
-    if (data) setStatus(prev => ({ ...(prev || {}), current_app: data }))
+    if (data) {
+      setStatus(prev => {
+        const next = { ...(prev || {}), current_app: data }
+        onStatusChange?.(next)
+        return next
+      })
+    }
   }
 
   const refreshDiagnostics = async () => {
     const data = await request('/diagnostics', null, 'GET')
-    if (data) setStatus(prev => ({ ...(prev || {}), diagnostics: data }))
+    if (data) {
+      setStatus(prev => {
+        const next = { ...(prev || {}), diagnostics: data }
+        onStatusChange?.(next)
+        return next
+      })
+    }
   }
 
   const launchApp = async (app) => {

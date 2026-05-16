@@ -440,6 +440,19 @@ async def test_androidtv_adb_status(monkeypatch):
     status.assert_called_once()
 
 
+def test_androidtv_adb_build_status_reflects_known_connection(monkeypatch):
+    from state import app_state
+
+    monkeypatch.setattr(app_state.android_adb, "host", "192.168.1.120")
+    monkeypatch.setattr(app_state.android_adb, "port", 5555)
+    monkeypatch.setattr(app_state.android_adb, "serial", "192.168.1.120:5555")
+
+    status = app_state.android_adb.build_status()
+    assert status["connected"] is True
+    assert status["authorized"] is True
+    assert status["state"] == "device"
+
+
 @pytest.mark.asyncio
 async def test_androidtv_adb_connect(monkeypatch):
     from main import app

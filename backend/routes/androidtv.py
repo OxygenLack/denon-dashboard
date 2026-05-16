@@ -170,21 +170,27 @@ async def androidtv_adb_status():
 @router.post("/adb/connect")
 async def androidtv_adb_connect(req: AndroidTvAdbConnectRequest):
     host = _validate_lan_ip(req.host)
-    return await _adb_call(app_state.android_adb.connect(host, req.port))
+    status = await _adb_call(app_state.android_adb.connect(host, req.port))
+    await app_state.broadcast_state()
+    return status
 
 
 @router.post("/adb/pair")
 async def androidtv_adb_pair(req: AndroidTvAdbPairRequest):
     host = _validate_lan_ip(req.host)
     try:
-        return await _adb_call(app_state.android_adb.pair(host, req.port, req.code.strip()))
+        status = await _adb_call(app_state.android_adb.pair(host, req.port, req.code.strip()))
+        await app_state.broadcast_state()
+        return status
     except ValueError as exc:
         raise HTTPException(400, str(exc))
 
 
 @router.post("/adb/disconnect")
 async def androidtv_adb_disconnect():
-    return await _adb_call(app_state.android_adb.disconnect(clear_host=True))
+    status = await _adb_call(app_state.android_adb.disconnect(clear_host=True))
+    await app_state.broadcast_state()
+    return status
 
 
 @router.get("/adb/diagnostics")

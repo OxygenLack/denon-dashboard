@@ -137,18 +137,20 @@ class AndroidTvAdbClient:
     def build_status(
         self,
         *,
-        connected: bool = False,
-        authorized: bool = False,
+        connected: bool | None = None,
+        authorized: bool | None = None,
     ) -> dict[str, Any]:
+        known_connected = bool(self.serial) if connected is None else connected
+        known_authorized = bool(self.serial) if authorized is None else authorized
         return {
             "enabled": self.enabled,
             "adb_available": None,
             "host": self.host,
             "port": self.port,
             "serial": self.serial,
-            "connected": connected,
-            "authorized": authorized,
-            "state": None,
+            "connected": known_connected,
+            "authorized": known_authorized,
+            "state": "device" if known_connected else None,
             "model": None,
             "android_version": None,
             "build": None,
