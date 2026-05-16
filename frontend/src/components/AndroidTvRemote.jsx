@@ -298,7 +298,7 @@ export default function AndroidTvRemote({ state }) {
   const connected = tv.connected
   const adb = adbStatus || {}
   const needsPairing = tv.pairing
-  const statusLabel = connected ? `Connected ${tv.host || ''}` : tv.pairing ? 'Pairing' : tv.host ? 'Reconnecting...' : 'Disconnected'
+  const statusLabel = connected ? `Remote ${tv.host || ''}` : tv.pairing ? 'Remote pairing' : tv.host ? 'Remote reconnecting...' : 'Remote disconnected'
   const statusClass = connected ? 'badge-green' : tv.pairing || tv.host ? 'badge-muted' : 'badge-red'
   const adbStatusLabel = adb.enabled === false ? 'ADB Disabled' : adb.connected ? 'ADB Connected' : adb.state ? `ADB ${adb.state}` : 'ADB Disconnected'
   const adbStatusClass = adb.connected ? 'badge-green' : adb.enabled === false || adb.state === 'unauthorized' ? 'badge-muted' : 'badge-red'
@@ -513,24 +513,21 @@ export default function AndroidTvRemote({ state }) {
         <div className={`${activeAndroidPanel === 'remote' ? '' : 'hidden'} lg:block`}>
       {connected && (
       <div className="card relative space-y-5">
-        {adb.enabled !== false && (
-          <div className="sticky top-2 z-20 lg:hidden">
+        <div className="flex items-center justify-between gap-3">
+          <IconButton label="Power" disabled={!connected} onClick={startPowerConfirm} feedbackState={fb('Power')} className="h-10 w-16 rounded-xl bg-denon-red/80 border-denon-red/50 sm:h-12 sm:w-24 sm:rounded-2xl">
+            <RemoteIcon type="power" className="w-6 h-6" />
+          </IconButton>
+          {adb.enabled !== false && (
             <AndroidTvLiveView
               adbConnected={Boolean(adb.connected)}
               remoteConnected={connected}
               onRemoteKey={sendKey}
-              variant="mini"
+              variant="dialogButton"
               defaultQuality="low"
               defaultInterval="balanced"
-              defaultLive={Boolean(adb.connected)}
+              className="lg:hidden"
             />
-          </div>
-        )}
-
-        <div className="flex justify-start">
-          <IconButton label="Power" disabled={!connected} onClick={startPowerConfirm} feedbackState={fb('Power')} className="h-10 w-16 rounded-xl bg-denon-red/80 border-denon-red/50 sm:h-12 sm:w-24 sm:rounded-2xl">
-            <RemoteIcon type="power" className="w-6 h-6" />
-          </IconButton>
+          )}
         </div>
 
         <div className="relative mx-auto w-[min(18rem,100%)] aspect-square max-[380px]:w-[min(16.5rem,100%)]">

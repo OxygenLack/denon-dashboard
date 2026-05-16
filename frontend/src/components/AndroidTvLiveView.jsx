@@ -65,6 +65,7 @@ export default function AndroidTvLiveView({
   const busyRef = useRef(false)
 
   const isMini = variant === 'mini'
+  const isDialogButton = variant === 'dialogButton'
   const qualityPreset = SCREENSHOT_PRESETS[quality] || SCREENSHOT_PRESETS.medium
   const intervalPreset = LIVE_INTERVALS[interval] || LIVE_INTERVALS.balanced
 
@@ -161,6 +162,13 @@ export default function AndroidTvLiveView({
     if (ok && !onRemoteKey) vibrate()
   }
 
+  const openFullscreen = () => {
+    setFullscreen(true)
+    if (adbConnected && !screenshotUrl) {
+      window.setTimeout(() => refreshScreenshot(), 0)
+    }
+  }
+
   const controls = (
     <div className="flex flex-wrap items-center justify-end gap-2">
       <select
@@ -210,7 +218,7 @@ export default function AndroidTvLiveView({
         aria-label="Open fullscreen live view"
         title="Fullscreen"
         disabled={!screenshotUrl}
-        onClick={() => setFullscreen(true)}
+        onClick={openFullscreen}
         className="flex h-9 w-9 items-center justify-center rounded-xl border border-denon-border bg-denon-surface text-denon-text transition-all active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed"
       >
         <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -222,6 +230,36 @@ export default function AndroidTvLiveView({
       </button>
     </div>
   )
+
+  if (isDialogButton) {
+    return (
+      <>
+        <button
+          type="button"
+          onClick={openFullscreen}
+          className={`flex h-10 items-center justify-center gap-2 rounded-xl border border-denon-border bg-denon-surface/70 px-3 text-xs font-semibold text-denon-text transition-all active:scale-95 hover:border-denon-gold/40 ${className}`}
+        >
+          <svg className="h-4 w-4 text-denon-gold" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <rect x="3" y="5" width="18" height="12" rx="2" />
+            <path d="M8 21h8" />
+            <path d="M12 17v4" />
+          </svg>
+          Live view
+          {!adbConnected && <span className="text-denon-red">ADB off</span>}
+        </button>
+        {fullscreen && (
+          <LiveViewModal
+            screenshotUrl={screenshotUrl}
+            controls={controls}
+            remoteConnected={remoteConnected}
+            adbConnected={adbConnected}
+            onClose={() => setFullscreen(false)}
+            onRemoteKey={sendOverlayKey}
+          />
+        )}
+      </>
+    )
+  }
 
   return (
     <>
@@ -261,7 +299,7 @@ export default function AndroidTvLiveView({
         <button
           type="button"
           disabled={!screenshotUrl}
-          onClick={() => setFullscreen(true)}
+          onClick={openFullscreen}
           className={`${isMini ? 'aspect-video' : 'aspect-video'} relative flex w-full items-center justify-center overflow-hidden rounded-xl border border-denon-border/60 bg-black/40 disabled:cursor-default`}
         >
           {screenshotUrl ? (
@@ -285,7 +323,7 @@ export default function AndroidTvLiveView({
             <TinyButton disabled={!adbConnected || busy} onClick={() => refreshScreenshot()} className="flex-1 bg-denon-surface text-denon-text border border-denon-border">
               Refresh
             </TinyButton>
-            <TinyButton disabled={!screenshotUrl} onClick={() => setFullscreen(true)} className="flex-1 bg-denon-gold text-denon-dark">
+            <TinyButton disabled={!screenshotUrl} onClick={openFullscreen} className="flex-1 bg-denon-gold text-denon-dark">
               Open
             </TinyButton>
           </div>
@@ -297,6 +335,7 @@ export default function AndroidTvLiveView({
           screenshotUrl={screenshotUrl}
           controls={controls}
           remoteConnected={remoteConnected}
+          adbConnected={adbConnected}
           onClose={() => setFullscreen(false)}
           onRemoteKey={sendOverlayKey}
         />
@@ -305,13 +344,15 @@ export default function AndroidTvLiveView({
   )
 }
 
-function LiveViewModal({ screenshotUrl, controls, remoteConnected, onClose, onRemoteKey }) {
+function LiveViewModal({ screenshotUrl, controls, remoteConnected, adbConnected, onClose, onRemoteKey }) {
   return (
     <div className="fixed inset-0 z-50 flex flex-col bg-black/95 p-3 sm:p-5">
       <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
         <div>
           <h3 className="text-sm font-semibold text-denon-text">Android TV Live View</h3>
-          <p className="text-xs text-denon-muted">{remoteConnected ? 'Overlay controls enabled' : 'Remote disconnected'}</p>
+          <p className="text-xs text-denon-muted">
+            {adbConnected ? remoteConnected ? 'Overlay controls enabled' : 'Remote disconnected' : 'ADB disconnected'}
+          </p>
         </div>
         <div className="flex flex-wrap items-center justify-end gap-2">
           {controls}
